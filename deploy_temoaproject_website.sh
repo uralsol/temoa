@@ -2,7 +2,7 @@
 
 set -e  # stop on error
 
-REMOTE_SERVER='temoaproject.org'
+REMOTE_SERVER='energym@temoaproject.org'
 UPDDIR='.temoaproject.org-updating'
 UPDPKG='.temoaproject.org-updating.tbz'
 DELDIR='.temoaproject.org-deleting'
