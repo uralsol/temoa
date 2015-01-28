@@ -63,14 +63,10 @@ if [[ -z "$(which sphinx-build)" ]]; then
 Unable to find sphinx-build utility.  Building the documentation requires
 Sphinx.  Please install it before continuing.
 
-Note that Sphinx is installable via pip.  If you install to your system
-directories, use sudo.  If you wish to install within Coopr, use Coopr's pip:
+Note that Sphinx is installable via pip:
 
-      # install to system directories
+    # install to system directories
     $ sudo pip install sphinx
-
-      # install within Coopr's directories
-    $ $(dirname $(which coopr_python))/pip install sphinx
 
 Be sure to also install these packages from pip:
 
@@ -85,6 +81,23 @@ EOF
 
 	exit 1
 fi
+
+if [[ -z "$(which latex)" ]]; then
+	cat <<EOF
+Unable to find latex and associated libraries required to build the documentation. 
+Please install it before continuing.
+
+If using texlive, the following packages are required:
+
+    texlive-latex-base
+    texlive-latex-recommended
+    texlive-fonts-recommended
+    texlive-latex-extra
+EOF
+
+	exit 1
+fi
+
 
 git diff --quiet || (echo "Uncommitted changes in branch. Exiting ..." && exit 1)
 git diff --cached --quiet || (echo "Uncommitted changes in index. Exiting ..." && exit 1)
