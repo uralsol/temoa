@@ -49,9 +49,9 @@ EOF
 	exit 1
 fi
 
-if [[ -z "$(which coopr_python)" ]]; then
+if [[ -z "$(which python)" ]]; then
 	cat <<EOF
-Unable to find Coopr (coopr_python).  Please install it, or appropriately modify
+Unable to find Python.  Please install it, or appropriately modify
 your path before continuing.
 EOF
 
