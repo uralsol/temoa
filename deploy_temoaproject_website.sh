@@ -89,37 +89,6 @@ fi
 git diff --quiet || (echo "Uncommitted changes in branch. Exiting ..." && exit 1)
 git diff --cached --quiet || (echo "Uncommitted changes in index. Exiting ..." && exit 1)
 
-if [[ ! -e "TemoaBox.ova.torrent" ]]; then
-	cat <<EOF
-No torrent file (TemoaBox.ova.torrent).
-
-Since the Temoa Project supports Windows via a VirtualBox appliance, and the
-resulting OVA file is generally large, we offer it as a download via the
-bittorrent protocol.  Necessary steps to complete prior to executing this
-script:
-
-  * create an OVA file through your favorite means (e.g., build a functioning
-    system in VirtualBox and export it as an appliance)
-
-  * create a torrent file of the OVA file (e.g., use transmission-create,
-    transmission-gtk, Deluge, uTorrent ...)
-
-  * start seeding the torrent somewhere (CRITICAL; NOT YET SCRIPT IMPLEMENTED)
-
-  * place a copy of TemoaBox.ova.torrent in this directory
-EOF
-
-	exit 1
-else
-
-	echo -e "\nHave you started seeding the new OVA torrent?"
-	read -p "Type 'yes' to confirm that you've started the seed: " SEED_STARTED
-
-	[[ "$SEED_STARTED" != "yes" ]] &&
-	  echo -e "\n  Please start seeding the torrent." &&
-	  exit 1
-fi
-
 TMP_DIR=$(mktemp -d --suffix='.DeployTemoaWebsite')
 
 function cleanup () {
@@ -190,17 +159,6 @@ mkdir -p ./docs/
 mv /tmp/TemoaDocumentationBuild/singlehtml/* ./docs/
 mv /tmp/TemoaDocumentationBuild/latex/TemoaProject.pdf ./download/TemoaDocumentation.pdf
 mv "$TMP_DIR/"{temoa.py,example_data_sets.zip} ./download/
-
-# Convert '&' to '&amp;' for proper HTML
-MAGNET_URL=$(transmission-show -m TemoaBox.ova.torrent | sed "{s/\&/\&amp;/g}")
-
-# Escape '&' so the next sed doesn't mistake it for the regex '&'
-MAGNET_URL_SED_SAFE=$(echo "$MAGNET_URL" | sed "{s/\&/\\\&/g}")
-
-echo "  Writing Magnet URL: $MAGNET_URL"
-sed -i "{
-	s|REGEX_REPLACE_WITH_MAGNET_URL|$MAGNET_URL_SED_SAFE|;
-}" ./download/index.html
 
 chmod 755 ./download/temoa.py
 chmod 644 ./download/{example_data_sets.zip,TemoaDocumentation.pdf}
