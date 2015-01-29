@@ -24,46 +24,53 @@
 	</div><!--end header-->
 
 	<div id='content' class='pad'>
-		<h1 class='pagetitle'>Download</h1>
+		<h2 class='pagetitle'>Download and Installation</h2>
 		<div class='entry page clear'>
-			<p>The abstract formulation of the Temoa energy system model is written with <a href='https://software.sandia.gov/trac/coopr/wiki/Pyomo'>Pyomo</a>, which is in turn written in <a href='http://www.python.org/'>Python</a>.  Consequently, <strong>Temoa will run on Linux, Mac, Windows, or any operating system that Pyomo supports.</strong></p>
+			<p>The Temoa energy system model is implemented with <a href='https://www.pyomo.org/'>Pyomo</a>, which is in turn written in <a href='http://www.python.org/'>Python</a>.  Consequently, <strong>Temoa will run on Linux, Mac, Windows, or any operating system that Pyomo supports.</strong></p>
 
-			<p>That said, getting to a functional Coopr installation has historically proven a somewhat difficult task, so we offer two modes of installation:</p>
-
-			<h2>Simple Installation</h2>
-
-			<p>The <q>simple installation</q> runs Coopr and Temoa inside of a <a href='http://en.wikipedia.org/wiki/Virtual_machine' title='(VM) a software-based emulation of a computer'>virtual machine</a>.  We have setup a Linux distribution with Coopr, a solver, and Temoa preinstalled.  Follow these steps to run it:</p>
+			<p>There are several open source software elements required to run Temoa. Because the licenses vary between them, we cannot create a single, customized installation package. However, the installation process does not take very long. Here are the pieces you will need to install, and it is best to install them in the order given below:</p>
 
 			<ol>
-				<li>Download and install <a href='https://www.virtualbox.org/'>VirtualBox</a>.</li>
-				<li>Download and install a <a href='https://en.wikipedia.org/wiki/BitTorrent' title='Wikipedia article explaining what a Torrent is'>Torrent</a> application.  We suggest <a href='http://www.utorrent.com/' title='Mac and Windows users'>μTorrent</a> or <a href='http://www.transmissionbt.com/' 'Mac and Linux users'>Transmission</a>.  (Note that Ubuntu may already come with Transmission.)
-				<li>Download <a href='REGEX_REPLACE_WITH_MAGNET_URL' title='A Bittorrent "magnet" link for TemoaBox, our "Virtual" Linux installation with temoa.py and coopr already installed.'>TemoaBox.ova</a> (a "magnet" link that requires a Torrent application).</li>
+				<li><b>Python</b>.  Temoa requires at least <a href='https://www.python.org/downloads/release/python-279/' title='The Python scripting language'>Python v2.7</a>. For our own development, we currently use a Python distribution called <a href='https://store.continuum.io/cshop/anaconda/' title='the Anaconda distribution'>
+				Anaconda</a>, which is available for free through Continuum Analytics. Another popular distribution is <a href='https://store.enthought.com/'>Enthought Canopy</a> (the 'Express version is freely available). The main advantage of using a Python distribution is that it automatically curates a large number of Python packages (e.g., numpy, scipy, matplotlib), thus eliminating the need for ad hoc Python package management. If you install Anaconda for use with Temoa, make sure that during installation it gets added to your PATH. </li>
+				<p></p>
+				<li><b>Pyomo</b>.  Temoa employs APIs from <a href='https://www.pyomo.org/' title='Pyomo website'>PYthon Optimization Modeling Objects (Pyomo)</a>, which was developed at <a href='http://www.sandia.gov/'>Sandia National Laboratories</a>. This is the software that allows us to implement the algebraic formulation of Temoa in Python without using commercial algebraic modeling languages, such as GAMS or AMPL. Pyomo is installed with two simple commands that utilize the Python 'pip' utility: 
+				<pre>$ pip install pyomo <br>$ pip install pyomo-extras </pre>
+				For more information on Pyomo installation, see <a href='https://www.pyomo.org/installation'>these instructions</a>. 
+				</li>
+				<p></p>
+				<li><b>A linear optimization solver</b>.  We recommend <a href='http://www.gnu.org/software/glpk/'>GLPK</a> as it is GPL software and thus free. A couple notes on GLPK installation. If you follow the link above, it points you to the download of a tarball that must be extracted and compiled in C. The procedure is relatively straightforward if you are running linux, as a c compiler is already installed. If using Windows, you can download a pre-compiled version <a href='http://winglpk.sourceforge.net/'>here</a>. If you plan to run Temoa with large datasets and/or conduct uncertainty analysis, you may want to consider commercial linear solvers such as <a href='http://www-01.ibm.com/software/commerce/optimization/cplex-optimizer/'>CPLEX</a> or <a href='http://www.gurobi.com/'>Gurobi</a>. Both offer free academic licenses. Note that whatever solver you choose, it must be added to your PATH or Pyomo won't be able to find it.
+				</li>
+				<p></p>
+				<li><b>The Temoa model</b>. There are a couple of options for obtaining and running Temoa. The first option is to download <a href='./temoa.py'>temoa.py</a> and <a href='./example_data_sets.zip'>example_data_sets.zip</a>. The 'temoa.py' file is actually a zip archive, but you can run it from the command line as an executable. (To see the actual model files, change the extension from '.py' to '.zip' and then simply unzip the archive.) 
+				The second option creates a local copy of the source code and input data archived in our <a a href='/go-to-github/'>GitHub repository</a>. This is a two step process: first install git and then 'clone' the repository. Under Linux, git can be installed through the default package manager. Git for Windows and Mac can be downloaded <a href='http://git-scm.com/download/'>here</a>. To clone the Temoa repository, navigate to the directory where you want the model to reside and type the following from the prompt:
+				<pre>$ git clone https://github.com/TemoaProject/temoa/</pre>
+				Note that cloning the repository will supply the latest version of the code, while the downloads described above may reference older versions of the code with potentially less functionality.
+				</p>
+				</li>
+
 			</ol>
 
-			<h3>Why not your normal download process?  Or "What that heck is a Torrent?!"</h3>
-			<p>The BitTorrent protocol is a peer-to-peer method to distribute large files over the net.  In a nutshell, large files are broken up into small pieces, and downloaders trade these pieces amongst themselves until they have the entire file.  In this way, downloaders share their otherwise unused (upload) bandwidth, which means every user benefits from higher speeds when downloading large files.  Kinda neat, huh?</p>
+			<p>The installation procedures above are meant to be generic and should work across different platforms. Nonetheless, system-specific ambiguities and unexpected conditions inevitably arise.  Please use the <a href='https://groups.google.com/forum/#!forum/temoa-project'>Temoa forum</a> to ask for help.</p>
 
-			<h2>Advanced Installation</h2>
-			<p>If you know your way around the computer, and how to deal with intermittent network or installation issues, you may appreciate avoiding the overhead of TemoaBox, and instead installing the relevant tools yourself.  If you encounter difficulty with this avenue, you may ask for help on our Forum.  However, note that we offer minimal support in this area, and so you may have to ask for help elsewhere.  Here are the pieces you will need to install/plumb up:</p>
-
-			<ol>
-				<li><a href='https://www.python.org/' title='The Python scripting language'>Python v2.7</a>.  Temoa requires at least v2.7, and Coopr does not yet support Python 3+.</li>
-				<li><a href='https://software.sandia.gov/trac/coopr/' title='The AML API against which Temoa is written'>COOPR</a>.  Temoa employs APIs from the COmmon Optimization Python Repository (Coopr); mainly Pyomo and PySP.</li>
-				<li>A linear optimization solver.  We recommend <a href='http://www.gnu.org/software/glpk/'>GLPK</a> as it is GPL software and gratis, but any solver for which Coopr has an interface will do.</li>
-				<li>The Temoa model, <a href='./temoa.py'>temoa.py</a>.  (Or, if you'd like to closely follow development, <a href='/go-to-github/'>clone the repository</a>.)</li>
-				<li>(Optional) Test your installation by running some <a href='./example_data_sets.zip'>example data sets</a>.</li>
-			</ol>
-
-			<p>We have tested the installation process on multiple machines, but unexpected conditions inevitably come up.  Please use the Forum to ask for help.</p>
-
-			<h2 id='#list-of-files'>Temoa Downloads</h2>
-			<p>If you know the salient details, here are "just the downloads":</p>
-			<ul>
-				<li><a href='/download/temoa.py' title='temoa.py (the product)'>temoa.py</a></li>
-				<li><a href='/download/example_data_sets.zip' title='Examples data sets with which to run the model; no warranties!'>example_data_sets.zip</a></li>
-				<li><a href='/download/TemoaDocumentation.pdf' title='The PDF form of the Temoa documentation.'>TemoaDocumentation.pdf</a></li>
-				<li><a href='REGEX_REPLACE_WITH_MAGNET_URL' title='A Bittorrent "magnet" link for TemoaBox, our "Virtual" Linux installation with temoa.py and coopr already installed.'>TemoaBox.ova</a> (torrent magnet link to a 540MiB VirtualBox appliance; will need <a href='https://www.utorrent.com/'>μTorrent</a>, <a href='https://www.transmissionbt.com/'>Transmission</a>, or other Bittorrent application)</li>
-			</ul>
+		<h2>Running Temoa</h2>
+			
+			
+			If you chose to download the zip archive and sample datasets, Here's how to run the zip file as an executable:
+				<pre>$ pyomo temoa.py /path/to/dat/file</pre>
+			The command above invokes Pyomo directly to instantiate the model and produces basic output. You can instead instantiate the model with Python:
+				<pre>$ python temoa.py /path/to/dat/file</pre>
+			This version enables enhanced functionality, including formatted results as well as the capability to make graphviz plots and to run stochastic optimization with pysp. To see the options available for running Temoa, type the following at the command prompt:
+			<pre>$ python temoa.py --help</pre>
+			You will be presented with a set of flags that can be used to enable different pieces of model functionality at runtime.
+			<p>If you instead clone the Temoa GitHub repository, the commands to run the model are analogous to the ones above, except the model folder is referenced rather than the zipped executable:
+			<pre>$ pyomo temoa_model/ /path/to/dat/file</pre>
+			or
+			<pre>$ python temoa_model/ /path/to/dat/file</pre>
+			
+			
+			For more information, see the Temoa <a href='/download/TemoaDocumentation.pdf' title='The PDF form of the Temoa documentation.'>user manual</a>.
+			
 		</div><!--end entry-->
 	</div><!--end content-->
 
