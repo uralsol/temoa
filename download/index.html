@@ -56,17 +56,15 @@
 		<h2>Running Temoa</h2>
 			
 			
-			<p>If you chose to download the zip archive and sample datasets, Here's how to run the zip file as an executable:
-				<pre>$ pyomo temoa.py /path/to/dat/file</pre>
-			The command above invokes Pyomo directly to instantiate the model and produces basic output. You can instead instantiate the model with Python:
-				<pre>$ python temoa.py /path/to/dat/file</pre>
-			This version enables enhanced functionality, including formatted results as well as the capability to make graphviz plots and to run stochastic optimization with pysp. To see the options available for running Temoa, type the following at the command prompt:
+			<p>If you choose to download the zip archive and sample datasets, here's how to run the zip file as an executable:
+			<pre>$ python temoa.py /path/to/dat/file</pre>
+			Note that running the executable requires direct invocation of Python rather than Pyomo. In addition to enabling direct use of the zip file as an executable, this approach enables enhanced functionality, including formatted results as well as the capability to make graphviz plots and to run stochastic optimization with pysp. To see the options available for running Temoa, type the following at the command prompt:
 			<pre>$ python temoa.py --help</pre>
-			You will be presented with a set of flags that can be used to enable different pieces of model functionality at runtime.
-			<p>If you instead clone the Temoa GitHub repository, the commands to run the model are analogous to the ones above, except the model folder is referenced rather than the zipped executable:
-			<pre>$ pyomo temoa_model/ /path/to/dat/file</pre>
-			or
+			You will be presented with a set of flags that can be used to enable different pieces of model functionality at runtime.</p>
+			<p>If you instead clone the Temoa GitHub repository, there are a couple additional ways to run the model. The first option is to invoke Python directly, as above, except the model folder is referenced rather than the zipped archive: 
 			<pre>$ python temoa_model/ /path/to/dat/file</pre>
+			The second option is to invoke Pyomo from the command line, which will produce basic results in a yml file. Note that in this case you must point to the relevant model file within the model folder:
+			<pre>$ pyomo temoa_model/temoa_model.py /path/to/dat/file</pre>
 			</p>
 			
 			<p>For more information, see the Temoa <a href='/download/TemoaDocumentation.pdf' title='The PDF form of the Temoa documentation.'>user manual</a>.</p>
