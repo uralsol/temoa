@@ -41,10 +41,9 @@
 				<li><b>A linear optimization solver</b>.  We recommend <a href='http://www.gnu.org/software/glpk/'>GLPK</a> as it is GPL software and thus free. A couple notes on GLPK installation. If you follow the link above, it points you to the download of a tarball that must be extracted and compiled in C. The procedure is relatively straightforward if you are running Linux, as a c compiler is already installed. If using Windows, you can download a pre-compiled version <a href='http://winglpk.sourceforge.net/'>here</a>. If you plan to run Temoa with large datasets and/or conduct uncertainty analysis, you may want to consider commercial linear solvers such as <a href='http://www-01.ibm.com/software/commerce/optimization/cplex-optimizer/'>CPLEX</a> or <a href='http://www.gurobi.com/'>Gurobi</a>. Both offer free academic licenses. Note that whatever solver you choose, it must be added to your PATH or Pyomo won't be able to find it.
 				</li>
 				<p></p>
-				<li><b>The Temoa model</b>. There are a couple of options for obtaining and running Temoa. The first option is to download <a href='./temoa.py'>temoa.py</a> and <a href='./example_data_sets.zip'>example_data_sets.zip</a>. The 'temoa.py' file is actually a zip archive, but you can run it from the command line as an executable. (To see the actual model files, change the extension from '.py' to '.zip' and then simply unzip the archive.) 
-				The second option creates a local copy of the source code and input data archived in our <a a href='/go-to-github/'>GitHub repository</a>. This is a two step process: first install git and then 'clone' the repository. Under Linux, git can be installed through the default package manager. Git for Windows and Mac can be downloaded <a href='http://git-scm.com/download/'>here</a>. To clone the Temoa repository, navigate to the directory where you want the model to reside and type the following from the prompt:
+				<li><b>The Temoa model</b>. There are a couple of options for obtaining and running Temoa from github. If you want to simply test the model, you can download Temoa from github as a zip file. Navigate to <a href='https://github.com/TemoaProject/temoa'>our github page</a>, and click the green 'clone or download' button near the top-right corner. Select 'Download ZIP,' and you can download the entire Temoa 'energysystem' (our main branch) to your local machine. The second option creates a local copy of the source code and input data archived in our <a a href='/go-to-github/'>GitHub repository</a>. This is a two step process: first install git and then 'clone' the repository. Under Linux, git can be installed through the default package manager. Git for Windows and Mac can be downloaded <a href='http://git-scm.com/download/'>here</a>. To clone the Temoa repository, navigate to the directory where you want the model to reside and type the following from the prompt:
 				<pre>$ git clone https://github.com/TemoaProject/temoa/</pre>
-				Note that cloning the repository will supply the latest version of the code, while the downloads described above may reference older versions of the code with potentially less functionality.
+				Note that cloning the repository will supply the latest version of the code, and allow you to archive changes to the code and data in your own local git repository.
 				</p>
 				</li>
 
@@ -53,19 +52,19 @@
 			<p>The installation procedures above are meant to be generic and should work across different platforms. Nonetheless, system-specific ambiguities and unexpected conditions inevitably arise.  Please use the <a href='https://groups.google.com/forum/#!forum/temoa-project'>Temoa forum</a> to ask for help.</p>
 
 		<h2>Running Temoa</h2>
-			
-			
-			<p>If you choose to download the zip archive and sample datasets, here's how to run the zip file as an executable:
-			<pre>$ python temoa.py /path/to/dat/file</pre>
-			Note that running the executable requires direct invocation of Python rather than Pyomo. In addition to enabling direct use of the zip file as an executable, this approach enables enhanced functionality, including formatted results as well as the capability to make graphviz plots and to run stochastic optimization with pysp. To see the options available for running Temoa, type the following at the command prompt:
-			<pre>$ python temoa.py --help</pre>
-			You will be presented with a set of flags that can be used to enable different pieces of model functionality at runtime.</p>
-			<p>If you instead clone the Temoa GitHub repository, there are a couple additional ways to run the model. The first option is to invoke Python directly, as above, except the model folder is referenced rather than the zipped archive: 
-			<pre>$ python temoa_model/ /path/to/dat/file</pre>
-			The second option is to invoke Pyomo from the command line, which will produce basic results in a yml file. Note that in this case you must point to the relevant model file within the model folder:
-			<pre>$ pyomo temoa_model/temoa_model.py /path/to/dat/file</pre>
-			</p>
-			
+						
+			<p>The most basic way to run Temoa is with an input data (DAT) file:
+
+			<pre>$ python temoa_model/ /path/to/dat/file</pre>	
+
+			<p>This option will simply run the model and output the results to the shell. To make sure the model is functioning correctly, try running with the 'Utopia' dataset:
+
+			<pre>$ python temoa_model/ /data_files/utopia-15.dat</pre>
+
+			<p>To run the model with more features, use a configuration ('config') file. An example config file called 'config_sample' resides within the 'temoa_model' folder. The config file allows the user to specify the input / output data files and provides the option to save the lp file, log file, and model output to an Excel file. 
+
+			<pre>$ python temoa_model/ --config=temoa_model/config_sample</pre>
+
 			<p>For more information, see the Temoa <a href='/download/TemoaDocumentation.pdf' title='The PDF form of the Temoa documentation.'>user manual</a>.</p>
 			
 		</div><!--end entry-->
