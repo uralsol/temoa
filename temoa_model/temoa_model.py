@@ -62,7 +62,9 @@ def temoa_create_model ( name='The Temoa Energy System Model' ):
     M.tech_reserve    = Set( within=M.tech_all )
     M.tech_capacity_min   = Set( within=M.tech_all ) 
     M.tech_capacity_max   = Set( within=M.tech_all ) 
-    
+    # Technology set for lead time consideration
+    M.tech_lead = Set( dimen=1, within=M.tech_all )
+
     # Technology sets used for sector-specific MGA weights
     M.tech_mga         = Set( within=M.tech_all )
     M.tech_electric    = Set( within=M.tech_all )
@@ -70,7 +72,7 @@ def temoa_create_model ( name='The Temoa Energy System Model' ):
     M.tech_industrial  = Set( within=M.tech_all )
     M.tech_commercial  = Set( within=M.tech_all )
     M.tech_residential = Set( within=M.tech_all )
-    
+
     M.commodity_demand    = Set()
     M.commodity_emissions = Set()
     M.commodity_physical  = Set()
@@ -110,6 +112,7 @@ def temoa_create_model ( name='The Temoa Energy System Model' ):
     M.initialize_Lifetimes = BuildAction( rule=CreateLifetimes )
     M.GrowthRateMax = Param( M.tech_all )
     M.GrowthRateSeed = Param( M.tech_all )
+    M.LeadTimeTech = Param(M.tech_lead, default = 0) # Default lead time: 0 years
     
     # Temoa uses a couple of global variables to precalculate some frequently 
     # used results in constraint generation.  This is therefore intentially 
@@ -222,6 +225,15 @@ def temoa_create_model ( name='The Temoa Energy System Model' ):
     
     
     # Constraints---------------------------------------------------------------
+
+    # Can we put this constraint into ActivityByPeriodAndProcessConstraint?
+    M.LeadTimeConstraint_ptv = Set(
+      dimen = 3, initialize=LeadTimeConstraintIndices
+    )
+    M.LeadTimeConstraint = Constraint(
+      M.LeadTimeConstraint_ptv,
+      rule=LeadTime_Constraint
+    )
 
     # Constraints to calculate derived decision variables
     M.ActivityConstraint = Constraint( 
@@ -448,7 +460,6 @@ def temoa_create_model ( name='The Temoa Energy System Model' ):
     M.TechOutputSplitConstraint = Constraint( 
       M.TechOutputSplitConstraint_psdtvo, 
       rule=TechOutputSplit_Constraint )
-
 
     return M
 

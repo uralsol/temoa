@@ -1058,6 +1058,7 @@ available for use throughout the period.
 	  * M.V_Capacity[t, S_v]
 
 	  for S_v in M.ProcessVintages( p, t )
+	  if (p, t, S_v) not in M.LeadTimeConstraint_ptv
 	)
 
 	expr = (M.V_CapacityAvailableByPeriodAndTech[p, t] == cap_avail)
@@ -1405,6 +1406,64 @@ slice.
 		( 1 + value( M.ReserveMargin[c] ) )
 		)
 	return expr_left >= expr_right
+
+def availableActivity_Constraint ( M, p, t ,v):
+	#This is max produceable in a given year by a perticular technology
+	max_produceable = sum(
+		(
+			(   value( M.CapacityFactorProcess[S_s, S_d, t, S_v] )
+			  * value( M.CapacityToActivity[ t ] ) 
+			  * value( M.SegFrac[S_s, S_d]) 
+			)
+			* value( M.ProcessLifeFrac[p, t, S_v] )
+			* M.V_Capacity[t, S_v]
+			* value( M.CapReduction[p,t])
+		) 
+		for S_s in M.time_season
+		for S_d in M.time_of_day
+		for S_v in M.ProcessVintages(p,t)
+	)
+
+	#This is what is produced in a year by a particular technology
+	activity_pt = sum( 
+		M.V_Activity[p, S_s, S_d, t, S_v]
+		for S_s in M.time_season
+		for S_d in M.time_of_day
+		for S_v in M.ProcessVintages(p,t)
+		)
+
+	#If not then we have to deduct the produceable from the capacity built in the current year
+	if t in M.delay:
+	#Produceable from capacity built in the current year
+		most_recent = sum(
+			(   value( M.CapacityFactorProcess[S_s, S_d, t, S_v] )
+			  * value( M.CapacityToActivity[ t ] ) #* value( M.CapReduction[p,t])
+			  * value( M.SegFrac[S_s, S_d]) 
+			)
+			* value( M.ProcessLifeFrac[p, t, S_v] )
+			* M.V_Capacity[t, S_v]
+			* value( M.CapReduction[p,t])
+			for S_s in M.time_season
+			for S_d in M.time_of_day
+			for S_v in M.ProcessVintages(p,t)
+			if S_v == p
+		)
+
+		max_produceable_delay = max_produceable - most_recent
+		expr = ( activity_pt <= max_produceable_delay )
+		# print p, t, v
+		# print max_produceable
+		# print expr
+		# II()
+		return expr
+	#If the technology has existing capacity then all good - then this constraint is same as previous constraint
+	else:
+		expr = (activity_pt <= max_produceable)
+		return expr
+
+def LeadTime_Constraint(M, p, t, v):
+	expr = M.V_ActivityByPeriodAndProcess[p, t, v] <= 0
+	return expr
 
 # End additional and derived (informational) variable constraints
 ##############################################################################

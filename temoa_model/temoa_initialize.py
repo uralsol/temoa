@@ -1113,6 +1113,18 @@ def TechOutputSplitConstraintIndices ( M ):
 
 	return indices
 
+def LeadTimeConstraintIndices ( M ):
+	indices = set(
+		(p, t, v)
+
+		for p in M.time_optimize
+		for t in M.tech_lead
+		for v in M.ProcessVintages(p, t) # Should use dictionary in the future
+		if p <  v + value( M.LeadTimeTech[t] )
+	)
+
+	return indices
+
 # End constraints
 ##############################################################################
 
