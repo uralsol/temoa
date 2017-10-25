@@ -116,14 +116,15 @@ def db_2_dat(ifile, ofile, options):
 		['set',  'technologies',              'tech_production',    ['p','pb','ps','ph'], 0],
 		['set',  'technologies',              'tech_baseload',       'pb',           0],
 		['set',  'technologies',              'tech_storage',        'ps',           0],
-		['set',  'technologies',			  'tech_hourlystorage',	 'ph',			 0],  #set of technologies within hourly storage		
+		['set',  'technologies',              'tech_hourlystorage',  'ph',           0],  #set of technologies within hourly storage
 		['set',  'tech_reserve',              '',                    '',             0],
 		['set',  'tech_ramping',              '',                    '',             0],
+		['set',  'tech_lead',                 '',                    '',             0], # Set of technologies with lead time
 		['set',  'commodities',               'commodity_physical',  'p',            0],
 		['set',  'commodities',               'commodity_emissions', 'e',            0],
 		['set',  'commodities',               'commodity_demand',    'd',            0],
-		['set',  'tech_capacity_min',		  '',					 '',    		 0],  #set of technologies that must sum to satisfy a minimum aggregate capacity
-		['set',  'tech_capacity_max',		  '',					 '',    		 0],  #set of technologies that must sum to satisfy a maximum aggregate capacity		
+		['set',  'tech_capacity_min',         '',                    '',             0],  #set of technologies that must sum to satisfy a minimum aggregate capacity
+		['set',  'tech_capacity_max',         '',                    '',             0],  #set of technologies that must sum to satisfy a maximum aggregate capacity
 		['param','SegFrac',                   '',                    '',             2],
 		['param','DemandSpecificDistribution','',                    '',             3],
 		['param','CapacityToActivity',        '',                    '',             1],
@@ -138,8 +139,8 @@ def db_2_dat(ifile, ofile, options):
 		['param','MaxCapacity',               '',                    '',             2],
 		['param','MaxActivity',               '',                    '',             2],
 		['param','MinActivity',               '',                    '',             2],
-		['param','MinCapacitySum',			  '', 				     '',			 1], #minimum aggregate capacity of techs within tech_capacity
-		['param','MaxCapacitySum',			  '', 				     '',			 1], #maximum aggregate capacity of techs within tech_capacity
+		['param','MinCapacitySum',            '',                    '',             1], #minimum aggregate capacity of techs within tech_capacity
+		['param','MaxCapacitySum',            '',                    '',             1], #maximum aggregate capacity of techs within tech_capacity
 		['param','GrowthRateMax',             '',                    '',             1],
 		['param','GrowthRateSeed',            '',                    '',             1],
 		['param','LifetimeTech',              '',                    '',             1],
@@ -155,7 +156,8 @@ def db_2_dat(ifile, ofile, options):
 		['param','ReserveMargin',             '',                    '',             1],
 		['param','CapacityCredit',            '',                    '',             1],
 		['param','RampUp',                    '',                    '',             1],
-		['param','RampDown',                  '',                    '',             1]
+		['param','RampDown',                  '',                    '',             1],
+		['param','LeadTimeTech',              '',                    '',             1]
 	]
 
 	with open(ofile, 'w') as f:
