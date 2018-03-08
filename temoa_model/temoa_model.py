@@ -219,6 +219,12 @@ def temoa_create_model ( name='The Temoa Energy System Model' ):
     M.HourlyStorage_psdt = Set (dimen=4, initialize=HourlyStorageVariableIndices )
     M.V_HourlyStorage = Var( M.HourlyStorage_psdt, domain=NonNegativeReals )
 
+    #Sudan
+    M.tech_CapReduction = Set() 
+    M.delay           = Set()
+    M.CapReduction = Param( M.time_optimize, M.tech_all, default = 1.0)
+    M.FOMIncrease = Param( M.time_optimize, M.tech_all, default = 1.0)
+
     # Objective Function--------------------------------------------------------
     M.TotalCost = Objective(rule=TotalCost_rule, sense=minimize)
     
