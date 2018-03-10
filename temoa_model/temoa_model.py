@@ -270,11 +270,11 @@ def temoa_create_model ( name='The Temoa Energy System Model' ):
       M.DemandConstraint_psdc,  
       rule=Demand_Constraint )
 
-    M.DemandActivityConstraint_psdtv_dem_s0d0 = Set( 
-       dimen=8, initialize=DemandActivityConstraintIndices )
-    M.DemandActivityConstraint   = Constraint( 
-      M.DemandActivityConstraint_psdtv_dem_s0d0, 
-      rule=DemandActivity_Constraint )
+    #M.DemandActivityConstraint_psdtv_dem_s0d0 = Set( 
+    #   dimen=8, initialize=DemandActivityConstraintIndices )
+    #M.DemandActivityConstraint   = Constraint( 
+    #  M.DemandActivityConstraint_psdtv_dem_s0d0, 
+    #  rule=DemandActivity_Constraint )
 
     M.ProcessBalanceConstraint_psditvo = Set(
       dimen=7, initialize=ProcessBalanceConstraintIndices )
