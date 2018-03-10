@@ -463,6 +463,8 @@ def temoa_create_model ( name='The Temoa Energy System Model' ):
     M.MinActivityGroup = Constraint( 
       M.MinActivityGroup_pg, 
       rule=MinActivityGroup_Constraint )
+
+    M.availableActivityConstraint = Constraint(M.ActivityByPeriodAndProcessVar_ptv, rule=availableActivity_Constraint) #Sudan
     
     return M
 
