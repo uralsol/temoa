@@ -166,6 +166,8 @@ fp = open('results.csv', 'w')
 def Elastic_run():
     M.del_component('TotalCost')
     M.del_component('DemandConstraint')
+    M.del_component('M.DemandActivityConstraint_psdtv_dem_s0d0')
+    M.del_component('DemandActivityConstraint')
 
     M.num_demand_segments      = Param()
     M.demand_segment           = Set(ordered=True, rule=lambda M: range(1, value(M.num_demand_segments) + 1))
