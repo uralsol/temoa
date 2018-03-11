@@ -1,0 +1,130 @@
+data;
+
+# This dot dat file tests most Temoa functionality.  As of July 2011, Temoa
+# will solve this dot dat file on moderate hardware in < 5 seconds, consume
+# < 140 MiB of virtual memory, and < 60 MiB of physical RAM.
+
+# Note that this test.dat file is in no way, shape, or form representative of
+# a "real" or "typical" energy system, and is /solely/ meant to test basic
+# Temoa functionality.  All numbers in this file are suspect.
+
+set  time_exist   :=  2016;
+set  time_future  :=  2017 2018;
+
+set  time_season  :=  summer;
+set  time_of_day  :=  day;
+
+#set  tech_resource  :=
+#ethos
+#;
+
+set  tech_production  :=
+tech_A
+;
+
+set tech_new   :=
+tech_A
+;
+
+set  commodity_physical  :=
+diesel
+;
+
+set  commodity_demand  :=
+Dem_A
+;
+set  commodity_emissions  :=        # SET ENV
+ co2
+ ;
+param  EmissionActivity  :=        # TABLE NENV_TSEP, NENV_CAP
+# Emission    # input   # process      # vintage     # output      # amount released per unit activity
+ co2           diesel     tech_A        2016          Dem_A           10
+ co2           diesel     tech_A        2017          Dem_A           10
+ ;
+ 
+param  GlobalDiscountRate  := 0.1;
+
+
+param  CapacityToActivity  :=
+tech_A       1.0   # GW -> GWh
+
+#curtailment  1.0
+;
+
+param  SegFrac  :=
+summer  day    1.0
+;
+
+
+param  Demand  :=
+2017  Dem_A   60.0
+
+;
+
+param  MinCapacity  :=   
+# period     # tech  # value
+2017         tech_A     0.0
+
+;
+
+#param MaxCapacity :=
+#period   tech   value
+#2017         tech_A     600.0
+
+#;
+
+param  LifetimeTech  :=
+# tech          # lifetime in years
+tech_A        10
+
+#curtailment   1
+;
+
+
+param  CostInvest  :=
+# tech      # vintage       # cost
+ tech_A      2017            10
+
+;
+
+
+param  CostFixed  :=
+# period     # tech            # vintage   # cost
+2017         tech_A            2016        10.0
+2017         tech_A            2017        10.0
+
+;
+
+
+param  CostVariable  :=
+# period        # tech                # vintage       # cost
+2017            tech_A                2016            1.0
+2017            tech_A                2017            1.0
+;
+
+param  Efficiency  :=
+# input carrier  # tech            # vintage  # output carrier     # eff. value
+diesel           tech_A          2016      Dem_A                    1.0
+diesel           tech_A          2017      Dem_A                    1.0 
+
+;
+
+param  ExistingCapacity  :=
+# tech        # vintage       # capacity amount
+tech_A        2016             25
+
+;
+
+param CapacityFactorTech :=
+# season # day # tech          # value
+summer   day     tech_A             1.0
+
+;
+
+#param CapReduction :=
+#period     #tech      #value
+#2016         tech_A      1.0
+#2017         tech_A      1.0
+
+#;
+
