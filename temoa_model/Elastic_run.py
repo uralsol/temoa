@@ -153,12 +153,6 @@ def DemandSegment_midpoint_rule(M, p, s, d, dem, z):
     D = minb + (z - 0.5) * diff
     return D
 
-def Demand_curve_rule(M, p, s, d, dem, z):
-
-    minb = value(M.MinDemand[p, dem]) * M.DemandSpecificDistribution[s, d, dem]
-    diff = (value(M.MaxDemand[p, dem]) * M.DemandSpecificDistribution[s, d, dem] - minb) / value(M.num_demand_segments)
-    D = (minb + (z - 0.5) * diff)**(-1.0 / value(M.Elast[p, s, d, dem]))
-    return D
 
 def Demand_rule(M, p, s, d, dem):
     return value(M.Demand[p, dem]) * value(M.DemandSpecificDistribution[s, d, dem])
@@ -185,7 +179,6 @@ def Elastic_run():
     M.V_DemandSegment          = Var(M.DemandConstraint_psdcz,bounds=DemandSegment_bound_rule, initialize=0.0)
     M.PriceSegment             = Param(M.DemandConstraint_psdcz, initialize=PriceSegment_rule)
     M.DemandSegment_midpoint   = Param(M.DemandConstraint_psdcz, initialize=DemandSegment_midpoint_rule)
-    M.Demand_curve             = Param(M.DemandConstraint_psdcz, initialize=Demand_curve_rule)
     M.DemandElasticityConstraint = Constraint(M.DemandConstraint_psdc, rule=DemandElasticity_Constraint)
     M.DemandConstraint         = Constraint( M.DemandConstraint_psdc, rule=Demand_Constraint )
 
