@@ -41,7 +41,8 @@ def parameters(dm_instance, iaux, time_fut, instance, dV_Capacity, price_data, a
 def solve_dm(model, dat):
     #This function solves a deterministic model 
     model.dual  = Suffix(direction=Suffix.IMPORT)
-
+    model.del_component('M.DemandActivityConstraint_psdtv_dem_s0d0')
+    model.del_component('DemandActivityConstraint')
     data = DataPortal(model = model)
     data.load(filename=dat)
     instance = model.create_instance(data) #Defining the model instance with the data from .dat file
