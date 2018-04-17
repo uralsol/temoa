@@ -14,6 +14,8 @@ model.dual  = Suffix(direction=Suffix.IMPORT)
 dat = '/D/temoa/for_git/temoa/data_files/utopia-15.dat'
 data = DataPortal(model = model)
 data.load(filename=dat)
+model.del_component('M.DemandActivityConstraint_psdtv_dem_s0d0')
+model.del_component('DemandActivityConstraint')
 
 instance = model.create_instance(data)
 optimizer = SolverFactory('glpk')
