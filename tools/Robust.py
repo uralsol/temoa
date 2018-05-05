@@ -26,6 +26,7 @@ def pf_result(dat,dat1):
         M.scenario                     = Set(ordered=True, rule=lambda M: range(1, value(M.num_scenarios) + 1))
         M.CapacityFactorTech           = Param(M.time_season, M.time_of_day, M.tech_all, M.scenario)
         M.CapacityConstraint           = Constraint( M.time_optimize, M.time_season, M.time_of_day, M.commodity_demand, M.scenario, rule=Capacity_Constraint )
+        M.phi                          = Param()
 
         def Capacity_Constraint ( M, p, s, d, t, v):
         if t in M.tech_hourlystorage:
@@ -47,6 +48,20 @@ def pf_result(dat,dat1):
         instance.solutions.load_from(results)
         cost.append(instamce.TotalCost)
 
+    scenario_cost = open("ScenarioCost.dat", "w") #create a new file
+    print >> scenario_cost, """\
+    data;
+    
+    param: ScenarioCost  :=
+        # scenario        #cost
+    """
+    for scenario in sorted(instance.scenario.keys()):
+        print >> scenario_cost, "%10s" % l,
+        print >> scenario_cost, "    %10g    %10g    " % \
+                (scenario, cost[scenario])
+    
+    print >> scenario_cost, "    ;\n"
+    
     return 
 
 
