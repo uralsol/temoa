@@ -14,36 +14,41 @@ from IPython import embed as IP
 
 def pf_result(dat,dat1):
     M = temoa_create_model()
-
-    def Capacity_Constraint ( M, p, s, d, t, v, scenario):
-
-    if t in M.tech_hourlystorage:
-        return Constraint.Skip
-        
-    produceable = (
-      (   value( M.CapacityFactorTech[s, d, t, v, scenario] )
-        * value( M.CapacityToActivity[ t ] )
-        * value( M.SegFrac[s, d]) )
-        * value( M.ProcessLifeFrac[p, t, v] )
-      * M.V_Capacity[t, v]
-    )
-
-    expr = (produceable >= M.V_Activity[p, s, d, t, v])
-    return expr        
-
-
-    M.del_component('CapacityFactorTech')
-    M.del_component('Capacity_Constraint')
-    M.num_scenarios                = Param()
-    M.scenario                     = Set(ordered=True, rule=lambda M: range(1, value(M.num_scenarios) + 1))
-    M.CapacityFactorTech           = Param(M.time_season, M.time_of_day, M.tech_all, M.scenario)
-    M.CapacityConstraint           = Constraint( M.time_optimize, M.time_season, M.time_of_day, M.commodity_demand, M.scenario, rule=Capacity_Constraint )
-
-
     data1 = DataPortal(model = M)
     data1.load(filename=dat)
     data1.load(filename=dat1)
-    instance = M.create_instance(data1)
+    Cost = []
+    for scenario in num_scenarios:
+        M.del_component('CapacityFactorTech')
+        M.del_component('Capacity_Constraint')
+    
+        M.num_scenarios                = Param()
+        M.scenario                     = Set(ordered=True, rule=lambda M: range(1, value(M.num_scenarios) + 1))
+        M.CapacityFactorTech           = Param(M.time_season, M.time_of_day, M.tech_all, M.scenario)
+        M.CapacityConstraint           = Constraint( M.time_optimize, M.time_season, M.time_of_day, M.commodity_demand, M.scenario, rule=Capacity_Constraint )
+
+        def Capacity_Constraint ( M, p, s, d, t, v):
+        if t in M.tech_hourlystorage:
+            return Constraint.Skip   
+        produceable = (
+          (   value( M.CapacityFactorTech[s, d, t, v, scenario] )
+            * value( M.CapacityToActivity[ t ] )
+            * value( M.SegFrac[s, d]) )
+            * value( M.ProcessLifeFrac[p, t, v] )
+          * M.V_Capacity[t, v]
+        )
+        expr = (produceable >= M.V_Activity[p, s, d, t, v])
+        return expr        
+
+        instance = M.create_instance(data1)
+
+        optimizer = SolverFactory('cplex')
+        results = optimizer.solve(instance)
+        instance.solutions.load_from(results)
+        cost.append(instamce.TotalCost)
+
+    return 
+
 
 def temoa_robust(dat, dat2):
     M = temoa_create_model()
@@ -123,8 +128,7 @@ def temoa_robust(dat, dat2):
     optimizer = SolverFactory('cplex')
     results = optimizer.solve(instance)
     instance.solutions.load_from(results)
-
-
+    return instance
 
 
 Robust_run():
@@ -135,12 +139,7 @@ Robust_run():
     scenario_cost = solve_dm(model, dat)
 
     instance = temoa_robust(dat, dat2)
-    optimizer = SolverFactory('ipopt')
-
-    optimizer.options['max_iter'] = 10000
-    results = optimizer.solve(instance, keepfiles=True, tee=True)
-
-    instance.solutions.load_from(results)
+ 
     fp = open('results.csv', 'w')
     dm = open('demand.csv', 'w')
     print >>fp, '\"', instance.name, '\"'
@@ -150,7 +149,6 @@ Robust_run():
     # Objective
     print >>fp, '\"Objective function is:', value(instance.Robust), '\"'
     print >>fp, '\"Total Cost is:', value(instance.TotalCost.body), '\"'
-    print >>fp, '\"Consumer Cost is:', value(instance.consumer_cost.body), '\"'
     for v in instance.component_objects(Var, active=True):
         varobject = getattr(instance, str(v))
         #IP()
