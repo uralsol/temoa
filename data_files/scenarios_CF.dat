@@ -1,0 +1,10 @@
+data;
+
+param CapacityFactorTechMultiplier :=
+
+summer day tech_A 1 0.8
+summer day tech_a 2 0.6
+;
+
+param phi := 10  ;
+param num_scenarios := 2  ;

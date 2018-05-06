@@ -1,0 +1,447 @@
+data ;
+
+
+set  time_exist    :=  1990  2000  2010 ;
+set  time_future   :=  2020  2030 2040 2050 ;
+
+set  time_season  :=  inter  summer  winter ;
+set  time_of_day  :=  day  night ;
+
+set  tech_resource  :=    # SET
+ IMPDSL        # "imported diesel"
+ IMPCOAL        # "imported coal"
+ IMPOIL        # "imported crude oil"
+ IMPURN        # "imported uranium"
+ IMPFEQ         # "imported fossil equivalent"
+ IMPHYD         # "imported water", doesn't exist in Utopia
+ IMPWND         #Dummy import for wind
+ IMPSOL         #dummy import for solar
+	;
+
+set  tech_production  :=       # SET TCH (partial)
+ tech_COAL            # coal power plant
+ tech_NUC            # nuclear power plant
+ tech_HYD            # hydro power
+ tech_DSL            # diesel power plant
+ SRE            # crude oil processor
+ tech_SOL         #Solar PV 
+ tech_WND         #wind farm
+	;
+
+
+set  commodity_physical  :=        # SET ENT
+ ethos   # "dummy commodity" to supply inputs (makes graph easier to read)
+ DSL     # diesel
+ FEQ     # "fossil equivalent"
+ COA     # coal
+ HYD     # water
+ OIL     # crude oil
+ URN     # uranium
+ WND     #wind
+ SOL     #solar
+	;
+
+set  tech_baseload  :=
+ tech_COAL
+ tech_NUC
+ tech_HYD
+	;
+
+set  commodity_emissions  :=        # SET ENV
+ co2
+	;
+
+
+set  commodity_demand  :=        # SET DM
+ELC
+	;
+
+param  SegFrac  :=        # PARAMETER NQHR
+# Temoa                 # Utopia
+ inter  day     0.1667    # I-D
+ inter  night   0.0833    # I-N
+ summer day     0.1667    # S-D
+ summer night   0.0833    # S-N
+ winter day     0.3333    # W-D
+ winter night   0.1667    # W-N
+	;
+
+param  CapacityToActivity  :=         # PARAMETER TCH_CAPU
+# tech       # value
+ tech_COAL          31.54
+ tech_NUC          31.54
+ tech_HYD          31.54
+ tech_DSL          31.54
+ tech_WND          31.54
+ tech_SOL          31.54
+ SRE               1
+	;
+
+
+param  GlobalDiscountRate  :=  0.05 ;  # SCALAR DISCOUNT
+
+
+param  EmissionActivity  :=        # TABLE NENV_TSEP, NENV_CAP (Mtons/PJ)
+# Emission    # input   # process      # vintage     # output      # amount released per unit activity
+ co2           ethos     IMPDSL        2020          DSL           0.075
+ co2           ethos     IMPCOAL       2020          COA           0.089
+ co2           ethos     IMPOIL        2020          OIL           0.075
+	;
+
+param EmissionLimit :=
+2020    co2       9.778599711875001    
+2030    co2      10.195787211874999    
+2040    co2      10.334849711875       
+;
+
+param  Demand  :=        # TABLE DM_DEM (PJ)
+# year,  demand,  value
+ 2020     ELC        37     #6.423451317    #65   #25.2
+ 2030     ELC        38.5   #29.85732873    #97   #37.8
+ 2040     ELC        39     #35.17627869    #116   #56.7
+	;
+
+
+
+param  MinCapacity  :=   # roughly NRAT_RTY2 (GW)
+# period     # tech  # value
+ 2020         tech_HYD     0.13
+ 2030         tech_HYD     0.13
+ 2040         tech_HYD     0.13
+ 2020         SRE          0.07
+	;
+
+param  MaxCapacity  :=   # roughly NRAT_RTY2 (GW)
+# period     # tech  # value
+ 2020         tech_HYD     0.13
+ 2030         tech_HYD     0.17
+ 2040         tech_HYD     0.21
+	;
+
+
+param  LifetimeTech  :=
+ tech_COAL      40
+ tech_NUC       40
+ tech_HYD       100
+ tech_DSL       40
+ tech_SOL       40
+ tech_WND       40
+ SRE            50
+ IMPDSL         1000
+ IMPCOAL         1000
+ IMPOIL         1000
+ IMPURN         1000
+ IMPHYD          1000
+ IMPFEQ          1000
+	;
+
+
+param  LifetimeLoanTech  := #(years)
+# Temoa tech name, value
+ tech_COAL              40
+ tech_NUC               40
+ tech_HYD               100
+ tech_DSL               40
+ tech_SOL               40
+ tech_WND               40
+ SRE                    50
+	;
+
+
+param  CapacityFactorTech  := #https://www.eia.gov/electricity/monthly/current_month/epm.pdf
+# season # day   # tech  # value
+ inter    day     tech_COAL     0.638
+ inter    night   tech_COAL     0.638
+ winter   day     tech_COAL     0.638
+ winter   night   tech_COAL     0.638
+ summer   day     tech_COAL     0.638
+ summer   night   tech_COAL     0.638
+
+ inter    day     tech_NUC     0.99
+ inter    night   tech_NUC     0.99
+ winter   day     tech_NUC     0.99
+ winter   night   tech_NUC     0.99
+ summer   day     tech_NUC     0.99
+ summer   night   tech_NUC     0.99
+
+ inter    day     tech_HYD     0.449
+ inter    night   tech_HYD     0.449
+ winter   day     tech_HYD     0.449
+ winter   night   tech_HYD     0.449
+ summer   day     tech_HYD     0.449
+ summer   night   tech_HYD     0.449
+
+ inter    day     tech_DSL     0.8
+ inter    night   tech_DSL     0.8
+ winter   day     tech_DSL     0.8
+ winter   night   tech_DSL     0.8
+ summer   day     tech_DSL     0.8
+ summer   night   tech_DSL     0.8
+
+ inter    day     tech_WND     0.425
+ inter    night   tech_WND     0.425
+ winter   day     tech_WND     0.425
+ winter   night   tech_WND     0.425
+ summer   day     tech_WND     0.425
+ summer   night   tech_WND     0.425
+
+ inter    day     tech_SOL     0.187
+ inter    night   tech_SOL     0.0
+ winter   day     tech_SOL     0.187
+ winter   night   tech_SOL     0.0
+ summer   day     tech_SOL     0.187
+ summer   night   tech_SOL     0.0
+	;
+
+
+param  CapacityFactorProcess  :=
+# season # day   # tech  # vintage  # value
+ inter    day     tech_HYD     2030       0.2753
+ inter    night   tech_HYD     2030       0.2753
+ winter   day     tech_HYD     2030       0.2753
+ winter   night   tech_HYD     2030       0.2753
+ summer   day     tech_HYD     2030       0.2753
+ summer   night   tech_HYD     2030       0.2753
+
+ inter    day     tech_HYD     2040       0.2756
+ inter    night   tech_HYD     2040       0.2756
+ winter   day     tech_HYD     2040       0.2756
+ winter   night   tech_HYD     2040       0.2756
+ summer   day     tech_HYD     2040       0.2756
+ summer   night   tech_HYD     2040       0.2756
+	;
+
+
+param  Efficiency  :=        # PARAMETER CON_INP2, DMD_EFF
+# input carrier   # tech        # vintage  # output carrier   # eff. value
+ ethos             IMPDSL        2020       DSL                1
+ ethos             IMPCOAL       2020       COA                1
+ ethos             IMPOIL        2020       OIL                1
+ ethos             IMPURN        2020       URN                1
+ ethos             IMPFEQ        2020       FEQ                1
+ ethos             IMPHYD        2020       HYD                1
+ ethos             IMPWND        2020       WND                1
+ ethos             IMPSOL        2020       SOL                1
+
+ COA               tech_COAL           1990       ELC                0.32  # 1/3.125
+ COA               tech_COAL           2000       ELC                0.32  # 1/3.125
+ COA               tech_COAL           2010       ELC                0.32  # 1/3.125
+ COA               tech_COAL           2020       ELC                0.32  # 1/3.125
+ COA               tech_COAL           2030       ELC                0.32  # 1/3.125
+ COA               tech_COAL           2040       ELC                0.32  # 1/3.125
+
+ FEQ               tech_NUC           2020       ELC                0.32  # 1/3.125
+ FEQ               tech_NUC           2030       ELC                0.32  # 1/3.125
+ FEQ               tech_NUC           2040       ELC                0.32  # 1/3.125
+
+ URN               tech_NUC           2020       ELC                0.4   # 1/2.5
+ URN               tech_NUC           2030       ELC                0.4   # 1/2.5
+ URN               tech_NUC           2040       ELC                0.4   # 1/2.5
+
+ HYD               tech_HYD           2010       ELC                0.32  # 1/3.125
+ HYD               tech_HYD           2020       ELC                0.32  # 1/3.125
+ HYD               tech_HYD           2030       ELC                0.32  # 1/3.125
+ HYD               tech_HYD           2040       ELC                0.32  # 1/3.125
+
+ DSL               tech_DSL           1990       ELC                0.294 # 1/3.4
+ DSL               tech_DSL           2000       ELC                0.294 # 1/3.4
+ DSL               tech_DSL           2010       ELC                0.294 # 1/3.4
+ DSL               tech_DSL           2020       ELC                0.294 # 1/3.4
+ DSL               tech_DSL           2030       ELC                0.294 # 1/3.4
+ DSL               tech_DSL           2040       ELC                0.294 # 1/3.4
+
+ WND               tech_WND           2020       ELC                0.34 # 1/3.4
+ WND               tech_WND           2030       ELC                0.34 # 1/3.4
+ WND               tech_WND           2040       ELC                0.34 # 1/3.4
+
+ SOL               tech_SOL           2020       ELC                0.34 # 1/3.4
+ SOL               tech_SOL           2030       ELC                0.34 # 1/3.4
+ SOL               tech_SOL           2040       ELC                0.34 # 1/3.4
+
+ OIL               SRE           2020       DSL                1     # direct translation from PRC_INP2, PRC_OUT
+ OIL               SRE           2030       DSL                1     # direct translation from PRC_INP2, PRC_OUT
+ OIL               SRE           2040       DSL                1     # direct translation from PRC_INP2, PRC_OUT
+	;
+
+
+param  ExistingCapacity  :=        # TABLE TCH_RES (GW)
+# tech           # vintage       # capacity amount
+ tech_COAL              1990            0.175
+ tech_COAL              2000            0.175
+ tech_COAL              2010            0.15
+ tech_HYD              2010            0.1
+ tech_DSL              1990            0.005
+ tech_DSL              2000            0.005
+ tech_DSL              2010            0.2
+	;
+
+
+param  CostInvest  :=  # TABLE TCH_INVCOS (m€/GW)
+# tech     # vintage      # value
+ tech_COAL        2020           2030
+ tech_COAL        2030           2030
+ tech_COAL        2040           2030
+
+ tech_NUC        2020           4000
+ tech_NUC        2030           4000
+ tech_NUC        2040           4000
+
+ tech_HYD        2020           3000
+ tech_HYD        2030           3000
+ tech_HYD        2040           3000
+
+ tech_DSL        2020           1000
+ tech_DSL        2030           1000
+ tech_DSL        2040           1000
+
+ tech_WND        2020           1600
+ tech_WND        2030           1600
+ tech_WND        2040           1600
+
+ tech_SOL        2020           2030
+ tech_SOL        2030           2030
+ tech_SOL        2040           2030
+
+ SRE        2020            100
+ SRE        2030            100
+ SRE        2040            100
+
+
+;
+
+
+param  CostFixed  :=        # TABLE TCH_FIXOM (m€/GW-yr)
+# period         # tech        # vintage       # value
+ 2020             tech_COAL           1990              40
+ 2020             tech_COAL           2000              40
+ 2020             tech_COAL           2010              40
+ 2020             tech_COAL           2020              40
+ 2030             tech_COAL           2000              70
+ 2030             tech_COAL           2010              70
+ 2030             tech_COAL           2020              70
+ 2030             tech_COAL           2030              70
+ 2040             tech_COAL           2010             100
+ 2040             tech_COAL           2020             100
+ 2040             tech_COAL           2030             100
+ 2040             tech_COAL           2040             100
+
+ 2020             tech_NUC           2020             500
+ 2030             tech_NUC           2020             500
+ 2040             tech_NUC           2020             500
+ 2030             tech_NUC           2030             500
+ 2040             tech_NUC           2030             500
+ 2040             tech_NUC           2040             500
+
+ 2020             tech_HYD           2010              75
+ 2020             tech_HYD           2020              75
+ 2030             tech_HYD           2010              75
+ 2030             tech_HYD           2020              75
+ 2030             tech_HYD           2030              75
+ 2040             tech_HYD           2010              75
+ 2040             tech_HYD           2020              75
+ 2040             tech_HYD           2030              75
+ 2040             tech_HYD           2040              75
+
+ 2020             tech_DSL           1990              30
+ 2020             tech_DSL           2000              30
+ 2020             tech_DSL           2010              30
+ 2020             tech_DSL           2020              30
+ 2030             tech_DSL           2000              30
+ 2030             tech_DSL           2010              30
+ 2030             tech_DSL           2020              30
+ 2030             tech_DSL           2030              30
+ 2040             tech_DSL           2010              30
+ 2040             tech_DSL           2020              30
+ 2040             tech_DSL           2030              30
+ 2040             tech_DSL           2040              30
+
+ 2020             tech_WND           2020             41
+ 2030             tech_WND           2020             41
+ 2040             tech_WND           2020             41
+ 2030             tech_WND           2030             41
+ 2040             tech_WND           2030             41
+ 2040             tech_WND           2040             41
+
+ 2020             tech_SOL           2020             25
+ 2030             tech_SOL           2020             25
+ 2040             tech_SOL           2020             25
+ 2030             tech_SOL           2030             25
+ 2040             tech_SOL           2030             25
+ 2040             tech_SOL           2040             25
+
+ 
+	;
+
+
+param  CostVariable  :=        # TABLE NSEP_COST1, TCH_VAROM (m€/PJ)
+# period   # technology            # vintage   # value
+ 2020       IMPDSL                 2020         5   #10
+ 2030       IMPDSL                 2020         5   #10
+ 2040       IMPDSL                 2020         5   #10
+
+ 2020       IMPCOAL                 2020          2
+ 2030       IMPCOAL                 2020          2
+ 2040       IMPCOAL                 2020          2
+ 2020       IMPOIL                 2020          8
+ 2030       IMPOIL                 2020          8
+ 2040       IMPOIL                 2020          8
+ 2020       IMPURN                 2020          2
+ 2030       IMPURN                 2020          2
+ 2040       IMPURN                 2020          2
+
+ 2020       tech_COAL                     1990          0.3
+ 2020       tech_COAL                     2000          0.3
+ 2020       tech_COAL                     2010          0.3
+ 2020       tech_COAL                     2020          0.3
+ 2030       tech_COAL                     2000          0.3
+ 2030       tech_COAL                     2010          0.3
+ 2030       tech_COAL                     2020          0.3
+ 2030       tech_COAL                     2030          0.3
+ 2040       tech_COAL                     2010          0.3
+ 2040       tech_COAL                     2020          0.3
+ 2040       tech_COAL                     2030          0.3
+ 2040       tech_COAL                     2040          0.3
+
+ 2020       tech_NUC                     2020          1.5
+ 2030       tech_NUC                     2020          1.5
+ 2040       tech_NUC                     2020          1.5
+ 2030       tech_NUC                     2030          1.5
+ 2040       tech_NUC                     2030          1.5
+ 2040       tech_NUC                     2040          1.5
+
+ 2020       tech_DSL                     1990          0.4
+ 2020       tech_DSL                     2000          0.4
+ 2020       tech_DSL                     2010          0.4
+ 2020       tech_DSL                     2020          0.4
+ 2030       tech_DSL                     2000          0.4
+ 2030       tech_DSL                     2010          0.4
+ 2030       tech_DSL                     2020          0.4
+ 2030       tech_DSL                     2030          0.4
+ 2040       tech_DSL                     2010          0.4
+ 2040       tech_DSL                     2020          0.4
+ 2040       tech_DSL                     2030          0.4
+ 2040       tech_DSL                     2040          0.4
+
+
+ 2020       tech_WND                     2020          12
+ 2030       tech_WND                     2020          12
+ 2040       tech_WND                     2020          12
+ 2030       tech_WND                     2030          12
+ 2040       tech_WND                     2030          12
+ 2040       tech_WND                     2040          12
+
+
+ 2020       tech_WND                     2020          11
+ 2030       tech_WND                     2020          11
+ 2040       tech_WND                     2020          11
+ 2030       tech_WND                     2030          11
+ 2040       tech_WND                     2030          11
+ 2040       tech_WND                     2040          11
+
+ 2020       SRE                     2020         10
+ 2030       SRE                     2020         10
+ 2030       SRE                     2030         10
+ 2040       SRE                     2020         10
+ 2040       SRE                     2030         10
+ 2040       SRE                     2040         10
+	;

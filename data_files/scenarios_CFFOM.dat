@@ -1,0 +1,19 @@
+data;
+
+param CapacityFactorTechMultiplier :=
+
+1 0.8
+2 0.8
+3 0.9
+4 0.9
+;
+
+param FixedCostMultiplier :=
+1  1.2
+2  0.8
+3  1.2
+4  0.8
+;
+
+param phi := 100  ;
+param num_scenarios := 4  ;

@@ -16,7 +16,7 @@ def pf_result(dat,dat1):
     M = temoa_create_model()
     M.num_scenarios                = Param()
     M.scenario                     = Set(ordered=True, rule=lambda M: range(1, value(M.num_scenarios) + 1))
-    M.CapacityFactorTechMultiplier = Param(M.time_season, M.time_of_day, M.tech_all, M.scenario)
+    M.EmissionLimitMultiplier      = Param(M.scenario)
     M.phi                          = Param()
 
     data1 = DataPortal(model = M)
@@ -25,21 +25,32 @@ def pf_result(dat,dat1):
     instance = M.create_instance(data1)
     Cost = []
     for scenario in sorted(instance.scenario.keys()):
-        M.del_component('Capacity_Constraint')
-        def Capacity_Constraint ( M, p, s, d, t, v):
-            if t in M.tech_hourlystorage:
-                return Constraint.Skip   
-            produceable = (
-              (   value( M.CapacityFactorTech[s, d, t] ) * value(M.CapacityFactorTechMultiplier[s, d, t, scenario])
-                * value( M.CapacityToActivity[ t ] )
-                * value( M.SegFrac[s, d]) )
-                * value( M.ProcessLifeFrac[p, t, v] )
-              * M.V_Capacity[t, v]
-            )
-            expr = (produceable >= M.V_Activity[p, s, d, t, v])
-            return expr        
+        M.del_component('EmissionLimitConstraint')
+
+        def EmissionLimit_Constraint ( M, p, e ):
+            emission_limit = M.EmissionLimit[p, e] * value(M.EmissionLimitMultiplier[scenario])
         
-        M.CapacityConstraint           = Constraint( M.ActivityVar_psdtv, rule=Capacity_Constraint )
+            actual_emissions = sum(
+                M.V_FlowOut[p, S_s, S_d, S_i, S_t, S_v, S_o]
+              * M.EmissionActivity[e, S_i, S_t, S_v, S_o]
+        
+              for tmp_e, S_i, S_t, S_v, S_o in M.EmissionActivity.sparse_iterkeys()
+              if tmp_e == e
+              if M.ValidActivity( p, S_t, S_v )
+              for S_s in M.time_season
+              for S_d in M.time_of_day
+            )
+        
+            if int is type( actual_emissions ):
+                msg = ("Warning: No technology produces emission '%s', though limit was "
+                  'specified as %s.\n')
+                SE.write( msg % (e, emission_limit) )
+                return Constraint.Skip
+        
+            expr = (actual_emissions <= emission_limit)
+            return expr
+        
+        M.EmissionLimitConstraint = Constraint( M.EmissionLimitConstraint_pe, rule=EmissionLimit_Constraint)
         instance = M.create_instance(data1)
 
         optimizer = SolverFactory('cplex')
@@ -69,9 +80,8 @@ def temoa_robust(dat, dat1, dat2):
     def Robust_rule ( M ):
         regret = sum(M.regret[scenario] for scenario in M.scenario)
         risk = value(M.phi) * (sum((M.z[p,s,d,dem,scenario] * M.z[p,s,d,dem,scenario]) for p,s,d,dem,scenario in M.DemandConstraint))
-        cost = sum( PeriodCost_rule(M, p) for p in M.time_optimize )
         
-        return (cost + regret + risk)
+        return (regret + risk)
 
     def Demand_Constraint ( M, p, s, d, dem, scenario ):
         supply = sum(
@@ -87,40 +97,49 @@ def temoa_robust(dat, dat1, dat2):
     
         return expr
 
-    def Capacity_Constraint ( M, p, s, d, t, v, scenario):
-    
-        if t in M.tech_hourlystorage:
-            return Constraint.Skip
-            
-        produceable = (
-          (   value( M.CapacityFactorTech[s, d, t] ) * value(M.CapacityFactorTechMultiplier[s, d, t, scenario])
-            * value( M.CapacityToActivity[ t ] )
-            * value( M.SegFrac[s, d]) )
-            * value( M.ProcessLifeFrac[p, t, v] )
-          * M.V_Capacity[t, v]
-        )
-    
-        expr = (produceable >= M.V_Activity[p, s, d, t, v])
-        return expr
-
     def regret_Constraint(M, scenario):
         expr = (M.regret[scenario] == sum( PeriodCost_rule(M, p) for p in M.time_optimize ) - value(M.scenarioCost[scenario]))
         return expr
 
     def real_obj(M): #STOCH ELASTIC
-        a = sum( PeriodCost_rule(M, p) for p in M.time_optimize )
+        a = sum( PeriodCost_rule(M, p)  for p in M.time_optimize )
         expr = (a >= 0)
         return expr
+
+    def EmissionLimit_Constraint ( M, p, e, scenario ):
+        emission_limit = M.EmissionLimit[p, e] * value(M.EmissionLimitMultiplier[scenario])
+    
+        actual_emissions = sum(
+            M.V_FlowOut[p, S_s, S_d, S_i, S_t, S_v, S_o]
+          * M.EmissionActivity[e, S_i, S_t, S_v, S_o]
+    
+          for tmp_e, S_i, S_t, S_v, S_o in M.EmissionActivity.sparse_iterkeys()
+          if tmp_e == e
+          if M.ValidActivity( p, S_t, S_v )
+          for S_s in M.time_season
+          for S_d in M.time_of_day
+        )
+    
+        if int is type( actual_emissions ):
+            msg = ("Warning: No technology produces emission '%s', though limit was "
+              'specified as %s.\n')
+            SE.write( msg % (e, emission_limit) )
+            return Constraint.Skip
+    
+        expr = (actual_emissions <= emission_limit)
+        return expr
+
+
         
     M.del_component('TotalCost')
     M.del_component('DemandConstraint')
     M.del_component('M.DemandActivityConstraint_psdtv_dem_s0d0')
     M.del_component('DemandActivityConstraint')
-    M.del_component('Capacity_Constraint')
+    M.del_component('EmissionLimitConstraint')
     # Efficiency: all the parameters
     M.num_scenarios                = Param()
     M.scenario                     = Set(ordered=True, rule=lambda M: range(1, value(M.num_scenarios) + 1))
-    M.CapacityFactorTechMultiplier = Param(M.time_season, M.time_of_day, M.tech_all, M.scenario)
+    M.EmissionLimitMultiplier      = Param(M.scenario)
     M.z                            = Var(M.time_optimize, M.time_season, M.time_of_day, M.commodity_demand, M.scenario)
     M.regret                       = Var(M.scenario)
     M.phi                          = Param()
@@ -128,8 +147,8 @@ def temoa_robust(dat, dat1, dat2):
     
     M.TotalCost                    = Constraint(rule=real_obj)
     M.DemandConstraint             = Constraint( M.time_optimize, M.time_season, M.time_of_day, M.commodity_demand, M.scenario, rule=Demand_Constraint )
-    M.CapacityConstraint           = Constraint( M.ActivityVar_psdtv, M.scenario, rule=Capacity_Constraint )
     M.regret_Constraint            = Constraint(M.scenario, rule=regret_Constraint)
+    M.EmissionLimitConstraint      = Constraint( M.EmissionLimitConstraint_pe, M.scenario, rule=EmissionLimit_Constraint)
 
     M.Robust = Objective(rule=Robust_rule, sense=minimize)
 
@@ -148,8 +167,8 @@ def temoa_robust(dat, dat1, dat2):
 def Robust_run():
     model = temoa_create_model()
     #dat = '/mnt/disk2/nspatank/Efficiency_nonlinear/data_files/US_National_ELC.dat'
-    dat = '/mnt/disk2/nspatank/EEfficiency_uptodate/data_files/test_Simple.dat'
-    dat1 = '/mnt/disk2/nspatank/EEfficiency_uptodate/data_files/scenarios_CF.dat'
+    dat = '/mnt/disk2/nspatank/EEfficiency_uptodate/data_files/utopia_ELC_REN.dat'
+    dat1 = '/mnt/disk2/nspatank/EEfficiency_uptodate/data_files/scenarios_emission.dat'
     scenario_cost = pf_result(dat, dat1)
     dat2 = '/mnt/disk2/nspatank/EEfficiency_uptodate/temoa_model/ScenarioCost.dat'
     instance = temoa_robust(dat, dat1, dat2)

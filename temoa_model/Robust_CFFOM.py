@@ -16,7 +16,8 @@ def pf_result(dat,dat1):
     M = temoa_create_model()
     M.num_scenarios                = Param()
     M.scenario                     = Set(ordered=True, rule=lambda M: range(1, value(M.num_scenarios) + 1))
-    M.CapacityFactorTechMultiplier = Param(M.time_season, M.time_of_day, M.tech_all, M.scenario)
+    M.CapacityFactorTechMultiplier = Param(M.scenario)
+    M.FixedCostMultiplier          = Param(M.scenario)
     M.phi                          = Param()
 
     data1 = DataPortal(model = M)
@@ -26,11 +27,51 @@ def pf_result(dat,dat1):
     Cost = []
     for scenario in sorted(instance.scenario.keys()):
         M.del_component('Capacity_Constraint')
+        M.del_component('PeriodCost_rule')
+
+        def PeriodCost_rule ( M, p ):
+            P_0 = min( M.time_optimize )
+            P_e = M.time_future.last() # End point of modeled horizon
+            GDR = value( M.GlobalDiscountRate )
+            MLL = M.ModelLoanLife
+            MPL = M.ModelProcessLife
+            x   = 1 + GDR    # convenience variable, nothing more.
+        
+            loan_costs = sum(
+                M.V_Capacity[S_t, S_v]
+              * (value( M.CostInvest[S_t, S_v] )
+                * value( M.LoanAnnualize[S_t, S_v] )
+                * ( value( M.LifetimeLoanProcess[S_t, S_v] ) if not GDR else
+                    (x **(P_0 - S_v + 1) * (1 - x **(-value( M.LifetimeLoanProcess[S_t, S_v] ))) / GDR)))
+              * ((1 -  x**( -min( value(M.LifetimeProcess[S_t, S_v]), P_e - S_v ) ))
+                  /(1 -  x**( -value( M.LifetimeProcess[S_t, S_v] ) ) ))
+              for S_t, S_v in M.CostInvest.sparse_iterkeys()
+              if S_v == p)
+        
+            fixed_costs = sum(
+                M.V_Capacity[S_t, S_v]
+              * (value( M.CostFixed[p, S_t, S_v] ) * value(M.FixedCostMultiplier[scenario])
+                * ( value( MPL[p, S_t, S_v] ) if not GDR else
+                    (x **(P_0 - p + 1) * (1 - x **(-value( MPL[p, S_t, S_v] ))) / GDR)))
+              for S_p, S_t, S_v in M.CostFixed.sparse_iterkeys()
+              if S_p == p)
+        
+            variable_costs = sum(
+                M.V_ActivityByPeriodAndProcess[p, S_t, S_v]
+              * (value( M.CostVariable[p, S_t, S_v] )
+                * ( value( MPL[p, S_t, S_v] ) if not GDR else
+                    (x **(P_0 - p + 1) * (1 - x **(-value( MPL[p, S_t, S_v] ))) / GDR)))
+        
+              for S_p, S_t, S_v in M.CostVariable.sparse_iterkeys()
+              if S_p == p)
+            period_costs = (loan_costs + fixed_costs + variable_costs)
+            return period_costs
+
         def Capacity_Constraint ( M, p, s, d, t, v):
             if t in M.tech_hourlystorage:
                 return Constraint.Skip   
             produceable = (
-              (   value( M.CapacityFactorTech[s, d, t] ) * value(M.CapacityFactorTechMultiplier[s, d, t, scenario])
+              (   value( M.CapacityFactorTech[s, d, t] ) * value(M.CapacityFactorTechMultiplier[scenario])
                 * value( M.CapacityToActivity[ t ] )
                 * value( M.SegFrac[s, d]) )
                 * value( M.ProcessLifeFrac[p, t, v] )
@@ -69,9 +110,8 @@ def temoa_robust(dat, dat1, dat2):
     def Robust_rule ( M ):
         regret = sum(M.regret[scenario] for scenario in M.scenario)
         risk = value(M.phi) * (sum((M.z[p,s,d,dem,scenario] * M.z[p,s,d,dem,scenario]) for p,s,d,dem,scenario in M.DemandConstraint))
-        cost = sum( PeriodCost_rule(M, p) for p in M.time_optimize )
         
-        return (cost + regret + risk)
+        return (regret + risk)
 
     def Demand_Constraint ( M, p, s, d, dem, scenario ):
         supply = sum(
@@ -93,7 +133,7 @@ def temoa_robust(dat, dat1, dat2):
             return Constraint.Skip
             
         produceable = (
-          (   value( M.CapacityFactorTech[s, d, t] ) * value(M.CapacityFactorTechMultiplier[s, d, t, scenario])
+          (   value( M.CapacityFactorTech[s, d, t] ) * value(M.CapacityFactorTechMultiplier[scenario])
             * value( M.CapacityToActivity[ t ] )
             * value( M.SegFrac[s, d]) )
             * value( M.ProcessLifeFrac[p, t, v] )
@@ -104,23 +144,66 @@ def temoa_robust(dat, dat1, dat2):
         return expr
 
     def regret_Constraint(M, scenario):
-        expr = (M.regret[scenario] == sum( PeriodCost_rule(M, p) for p in M.time_optimize ) - value(M.scenarioCost[scenario]))
+        expr = (M.regret[scenario] == sum( PeriodCost_rule(M, p, scenario) for p in M.time_optimize ) - value(M.scenarioCost[scenario]))
         return expr
 
     def real_obj(M): #STOCH ELASTIC
-        a = sum( PeriodCost_rule(M, p) for p in M.time_optimize )
+        a = sum( PeriodCost_rule(M, p, scenario)  
+            for p in M.time_optimize 
+            for scenario in M.scenario)
         expr = (a >= 0)
         return expr
+
+    def PeriodCost_rule ( M, p, scenario ):
+        P_0 = min( M.time_optimize )
+        P_e = M.time_future.last() # End point of modeled horizon
+        GDR = value( M.GlobalDiscountRate )
+        MLL = M.ModelLoanLife
+        MPL = M.ModelProcessLife
+        x   = 1 + GDR    # convenience variable, nothing more.
+    
+        loan_costs = sum(
+            M.V_Capacity[S_t, S_v]
+          * (value( M.CostInvest[S_t, S_v] )
+            * value( M.LoanAnnualize[S_t, S_v] )
+            * ( value( M.LifetimeLoanProcess[S_t, S_v] ) if not GDR else
+                (x **(P_0 - S_v + 1) * (1 - x **(-value( M.LifetimeLoanProcess[S_t, S_v] ))) / GDR)))
+          * ((1 -  x**( -min( value(M.LifetimeProcess[S_t, S_v]), P_e - S_v ) ))
+              /(1 -  x**( -value( M.LifetimeProcess[S_t, S_v] ) ) ))
+          for S_t, S_v in M.CostInvest.sparse_iterkeys()
+          if S_v == p)
+    
+        fixed_costs = sum(
+            M.V_Capacity[S_t, S_v]
+          * (value( M.CostFixed[p, S_t, S_v] ) * value(M.FixedCostMultiplier[scenario])
+            * ( value( MPL[p, S_t, S_v] ) if not GDR else
+                (x **(P_0 - p + 1) * (1 - x **(-value( MPL[p, S_t, S_v] ))) / GDR)))
+          for S_p, S_t, S_v in M.CostFixed.sparse_iterkeys()
+          if S_p == p)
+    
+        variable_costs = sum(
+            M.V_ActivityByPeriodAndProcess[p, S_t, S_v]
+          * (value( M.CostVariable[p, S_t, S_v] )
+            * ( value( MPL[p, S_t, S_v] ) if not GDR else
+                (x **(P_0 - p + 1) * (1 - x **(-value( MPL[p, S_t, S_v] ))) / GDR)))
+    
+          for S_p, S_t, S_v in M.CostVariable.sparse_iterkeys()
+          if S_p == p)
+        period_costs = (loan_costs + fixed_costs + variable_costs)
+        return period_costs
+
         
     M.del_component('TotalCost')
     M.del_component('DemandConstraint')
     M.del_component('M.DemandActivityConstraint_psdtv_dem_s0d0')
     M.del_component('DemandActivityConstraint')
     M.del_component('Capacity_Constraint')
+    M.del_component('PeriodCost_rule')
     # Efficiency: all the parameters
     M.num_scenarios                = Param()
     M.scenario                     = Set(ordered=True, rule=lambda M: range(1, value(M.num_scenarios) + 1))
-    M.CapacityFactorTechMultiplier = Param(M.time_season, M.time_of_day, M.tech_all, M.scenario)
+    M.CapacityFactorTechMultiplier = Param(M.scenario)
+    M.FixedCostMultiplier          = Param(M.scenario)
     M.z                            = Var(M.time_optimize, M.time_season, M.time_of_day, M.commodity_demand, M.scenario)
     M.regret                       = Var(M.scenario)
     M.phi                          = Param()
@@ -149,7 +232,7 @@ def Robust_run():
     model = temoa_create_model()
     #dat = '/mnt/disk2/nspatank/Efficiency_nonlinear/data_files/US_National_ELC.dat'
     dat = '/mnt/disk2/nspatank/EEfficiency_uptodate/data_files/test_Simple.dat'
-    dat1 = '/mnt/disk2/nspatank/EEfficiency_uptodate/data_files/scenarios_CF.dat'
+    dat1 = '/mnt/disk2/nspatank/EEfficiency_uptodate/data_files/scenarios_CFFOM.dat'
     scenario_cost = pf_result(dat, dat1)
     dat2 = '/mnt/disk2/nspatank/EEfficiency_uptodate/temoa_model/ScenarioCost.dat'
     instance = temoa_robust(dat, dat1, dat2)
