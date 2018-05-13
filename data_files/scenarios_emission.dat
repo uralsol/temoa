@@ -2,11 +2,11 @@ data;
 
 param EmissionLimitMultiplier :=
 
-1 0.9
-2 0.8
-3 0.7
-4 0.6
-5 1.0
+co2 1 0.9
+co2 2 0.8
+co2 3 0.7
+co2 4 0.6
+co2 5 1.0
 ;
 
 
