@@ -41,14 +41,14 @@ def pf_result(dat,dat1):
     data1.load(filename=dat)
     data1.load(filename=dat1)
     #print( "Creating model instance...")
-    #instance = M.create_instance(data1)
+    instance = M.create_instance(data1)
     Cost = []
 
-    SCENARIOS=[1,2,3,4]
+    #SCENARIOS=[1,2,3,4]
 
     #sorted(instance.scenario.keys())
     
-    for scenario in SCENARIOS:
+    for scenario in sorted(instance.scenario.keys()):
         M.del_component('EmissionLimitConstraint')
 
         def EmissionLimit_Constraint ( M, p, e ):
