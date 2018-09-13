@@ -115,7 +115,7 @@ def PeriodCost_rule ( M, p ):
 	    M.V_ActivityByPeriodAndProcess[p, S_t, S_v]
 	  * (
 	      value( M.CostVariable[p, S_t, S_v] )
-	    * value( M.PeriodRate[ p ] )
+	    * value( M.PeriodRate[ p ] )#* value( M.CostVarIncrease[p,S_t]) #Sudan
 	  )
 
 	  for S_p, S_t, S_v in M.CostVariable.sparse_iterkeys()
@@ -550,7 +550,8 @@ slice ``<s``,\ ``d>``.
 	    * value( M.ProcessLifeFrac[p, t, v] )
 	  * M.V_Capacity[t, v]
 	)
-
+	#if t in M.tech_production:
+	#	produceable = produceable * value( M.CapReduction[p,t]) #This line was added in the SSudan proj
 	expr = (produceable >= M.V_Activity[p, s, d, t, v])
 	return expr
 
@@ -921,8 +922,126 @@ def EmissionActivityByPeriodAndTech_Constraint ( M, e, p, t ):
 	expr = (M.V_EmissionActivityByPeriodAndTech[e, p, t] == emission_total)
 	return expr	
 
-	
+def HydroStorage_Constraint ( M, p, i, t, v, o ):
 
+	periods = sorted( M.time_future )
+	inflow = value( M.WaterInflow[p, t]) #Use the bound on resource extraction to define the water inflow at a particular ensemble
+
+	outflow = sum(
+	    M.V_FlowOut[p, S_s, S_d, i, t, v, o]
+
+	  for S_s in M.time_season
+	  for S_d in M.time_of_day
+	)
+
+	if p == periods[0]:
+		expr = ( M.V_HydroStorage[p,t] == M.InitialHydroStorage[t] + inflow - outflow )
+	else:
+		expr = ( M.V_HydroStorage[p,t] == M.V_HydroStorage[p-1,t] + inflow - outflow)
+
+	return expr
+
+def HydroStorage_UpperBound ( M, p, t):
+
+	expr = (M.V_HydroStorage[p,t] <= M.MaxHydroStorage[p, t])
+	
+	return expr
+
+
+def HydroStorage_LowerBound ( M, p, t):
+
+	expr = (M.V_HydroStorage[p,t] >= M.MinHydroStorage[p, t])
+	
+	return expr
+
+
+# Added for Ramp UP & Ramp Down Constraints ARQ 07/22/16
+#------Ramp Up
+def RampUpDay_Constraint ( M, p, s, d, t, v):
+	periods  = sorted( M.time_future )
+	seasons  = sorted( M.time_season )
+	daytimes = sorted( M.time_of_day )
+
+	rampup = value( M.RampUp[t])
+
+	if d != daytimes[0]:
+		expr = (M.V_Activity[p,s,d,t,v] - M.V_Activity[p,s,d-1,t,v] <= rampup )
+	else:
+		return Constraint.Skip
+
+	return expr
+
+def RampUpSeason_Constraint ( M, p, s, t, v):
+	periods  = sorted( M.time_future )
+	seasons  = sorted( M.time_season )
+	daytimes = sorted( M.time_of_day )
+	
+	rampup = value( M.RampUp[t])
+
+	if s != seasons[0]:
+		expr = (M.V_Activity[p,s,daytimes[0],t,v] - M.V_Activity[p,s-1,daytimes[-1],t,v] <= rampup )
+	else:
+		return Constraint.Skip
+
+	return expr
+
+def RampUpPeriod_Constraint ( M, p, t, v):
+	periods  = sorted( M.time_future )
+	seasons  = sorted( M.time_season )
+	daytimes = sorted( M.time_of_day )
+	
+	rampup = value( M.RampUp[t])
+
+	if p != periods[0]:
+		expr = (M.V_Activity[p,seasons[0],daytimes[0],t,v] - M.V_Activity[p-1,seasons[-1],daytimes[-1],t,v] <= rampup )
+	else:
+		return Constraint.Skip
+
+	return expr
+
+#------Ramp Down
+def RampDownDay_Constraint ( M, p, s, d, t, v):
+	periods  = sorted( M.time_future )
+	seasons  = sorted( M.time_season )
+	daytimes = sorted( M.time_of_day )
+
+	rampdown = value( M.RampDown[t])
+
+	if d != daytimes[0]:
+		expr = (M.V_Activity[p,s,d,t,v] - M.V_Activity[p,s,d-1,t,v] >= -rampdown )
+	else:
+		return Constraint.Skip
+
+	return expr
+
+def RampDownSeason_Constraint ( M, p, s, t, v):
+	periods  = sorted( M.time_future )
+	seasons  = sorted( M.time_season )
+	daytimes = sorted( M.time_of_day )
+	
+	rampdown = value( M.RampDown[t])
+
+	if s != seasons[0]:
+		expr = (M.V_Activity[p,s,daytimes[0],t,v] - M.V_Activity[p,s-1,daytimes[-1],t,v] >= -rampdown  )
+	else:
+		return Constraint.Skip
+
+	return expr
+
+def RampDownPeriod_Constraint ( M, p, t, v):
+	periods  = sorted( M.time_future )
+	seasons  = sorted( M.time_season )
+	daytimes = sorted( M.time_of_day )
+	
+	rampdown = value( M.RampDown[t])
+
+	if p != periods[0]:
+		expr = (M.V_Activity[p,seasons[0],daytimes[0],t,v] - M.V_Activity[p-1,seasons[-1],daytimes[-1],t,v] >= -rampdown  )
+	else:
+		return Constraint.Skip
+
+	return expr
+	
 # End additional and derived (informational) variable constraints
 ##############################################################################
 

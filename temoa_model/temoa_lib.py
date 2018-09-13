@@ -26,7 +26,7 @@ from operator import itemgetter as iget
 from os import path, close as os_close
 from sys import argv, stderr as SE, stdout as SO
 from signal import signal, SIGINT, default_int_handler
-
+#from IPython import embed as II
 import errno, warnings
 
 import pyomo.environ
@@ -187,7 +187,7 @@ def validate_SegFrac ( M ):
 
 	total = sum( i for i in M.SegFrac.itervalues() )
 
-	if abs(float(total) - 1.0) > 1e-15:
+	if abs(float(total) - 1.0) > 1e-8:
 		# We can't explicitly test for "!= 1.0" because of incremental roundoff
 		# errors inherent in float manipulations and representations, so instead
 		# compare against an epsilon value of "close enough".
@@ -366,7 +366,7 @@ def CreateDemands ( M ):
 
 	# Step 3
 	total = sum( i for i in DDD.itervalues() )
-	if abs(float(total) - 1.0) > 1e-15:
+	if abs(float(total) - 1.0) > 1e-8:
 		# We can't explicitly test for "!= 1.0" because of incremental roundoff
 		# errors inherent in float manipulations and representations, so instead
 		# compare against an epsilon value of "close enough".
@@ -411,7 +411,7 @@ def CreateDemands ( M ):
 		keys = (k for k in DSD.sparse_iterkeys() if DSD_dem_getter(k) == dem )
 		total = sum( DSD[ i ] for i in keys )
 
-		if abs(float(total) - 1.0) > 1e-15:
+		if abs(float(total) - 1.0) > 1e-8:
 			# We can't explicitly test for "!= 1.0" because of incremental roundoff
 			# errors inherent in float manipulations and representations, so
 			# instead compare against an epsilon value of "close enough".
@@ -896,6 +896,7 @@ def ProcessBalanceConstraintIndices ( M ):
 	  for p in M.time_optimize
 	  for t in M.tech_all
 	  if t not in M.tech_storage
+	  if t not in M.tech_hydro_storage #Added to represent hydro in the same way as the battery storage from last line
 	  for v in ProcessVintages( p, t )
 	  for i in ProcessInputs( p, t, v )
 	  for o in ProcessOutputsByInput( p, t, v, i )
@@ -916,6 +917,67 @@ def StorageConstraintIndices ( M ):
 	  for i in ProcessInputs( p, t, v )
 	  for o in ProcessOutputsByInput( p, t, v, i )
 	  for s in M.time_season
+	)
+
+	return indices
+
+
+def HydroStorageConstraintIndices ( M ):
+	indices = set(
+	  (p, i, t, v, o)
+
+	  for p in M.time_optimize
+	  for t in M.tech_hydro_storage
+	  for v in ProcessVintages( p, t )
+	  for i in ProcessInputs( p, t, v )
+	  for o in ProcessOutputsByInput( p, t, v, i )
+	)
+
+	return indices
+
+def HydroStorageBoundConstraintIndices ( M ):
+	indices = set(
+	  (p, t )
+
+	  for p in M.time_optimize
+	  for t in M.tech_hydro_storage
+	)
+
+	return indices
+
+# Added for Ramp UP & Down Constraints ARQ 07/22/16
+def RampConstraintDayIndices ( M ):
+	indices = set(
+	  (p, s, d, t, v)
+
+	  for p in M.time_optimize
+	  for s in M.time_season
+	  for d in M.time_of_day
+	  for t in M.tech_ramping
+	  for v in ProcessVintages( p, t )
+	)
+
+	return indices
+
+def RampConstraintSeasonIndices ( M ):
+	indices = set(
+	  (p, s, t, v)
+
+	  for p in M.time_optimize
+	  for s in M.time_season	  
+	  for t in M.tech_ramping
+	  for v in ProcessVintages( p, t )
+	)
+
+	return indices
+
+def RampConstraintPeriodIndices ( M ):
+	indices = set(
+	  (p, t, v)
+
+	  for p in M.time_optimize
+	  for t in M.tech_ramping
+	  for v in ProcessVintages( p, t )
 	)
 
 	return indices
@@ -1325,7 +1387,7 @@ def parse_args ( ):
 			SE.write(repr(temoa_config))
 			options = temoa_config
 			SE.write('\nPlease press enter to continue or Ctrl+C to quit.\n')
-			raw_input() # Give the user a chance to confirm input
+			#raw_input() # Give the user a chance to confirm input
 		except KeyboardInterrupt:
 			SE.write('\n\nUser requested quit.  Exiting Temoa ...\n')
 			raise SystemExit()
@@ -1696,7 +1758,7 @@ def solve_true_cost_of_guessing ( optimizer, options, epsilon=1e-6 ):
 
 	pwd = abspath( getcwd() )
 	chdir( options.eciu )
-	sStructure = scenario_tree_model.create_instance( filename='ScenarioStructure.dat' )
+	sStructure = scenario_tree_model.create_instance( filename='ScenarioStructure.dat' )#scenario_tree_model.create( filename='ScenarioStructure.dat' )
 
 	# Step 1: find the root node.  PySP doesn't make this very easy ...
 
@@ -1832,7 +1894,7 @@ def solve_true_cost_of_guessing ( optimizer, options, epsilon=1e-6 ):
 		mdata = DataPortal( model=model )
 		for node_name in scen_nodes[ assumed_fs ]:
 			mdata.load( filename=node_name + '.dat' )
-		m = model.create_instance( mdata )
+		m = model.create_instance( mdata ) #m = model.create( mdata )
 
 		# path_so_far includes nodes with CP of 1.
 		past_assumed = ''
@@ -1882,7 +1944,7 @@ def solve_true_cost_of_guessing ( optimizer, options, epsilon=1e-6 ):
 		# do the preprocess and solve.
 		m.preprocess()
 		results = opt.solve( m )
-		m.solutions.load_from( results )
+		m.solutions.load_from( results ) #m.load( results )
 
 		if 'infeasible' in str( results['Solver'] ):
 			msg = ('Infeasible solve.  Node: {}, path_so_far {}; my_assumptions: '
@@ -1938,7 +2000,7 @@ def solve_true_cost_of_guessing ( optimizer, options, epsilon=1e-6 ):
 				with open( fname, 'wb' ) as f:
 					pickle.dump( saved_node_data, f, pickle.HIGHEST_PROTOCOL )
 					f.flush()
-					os.fdatasync( f.fileno() )
+					os.fsync( f.fileno() )
 
 				if node in s_structure.Children:
 					if len( s_structure.Children[ node ] ) > 1:
@@ -1975,7 +2037,7 @@ def solve_true_cost_of_guessing ( optimizer, options, epsilon=1e-6 ):
 		with open( fname, 'wb' ) as f:
 			pickle.dump( saved_data, f, pickle.HIGHEST_PROTOCOL )
 			f.flush()
-			os.fdatasync( f.fileno() )
+			os.fsync( f.fileno() )
 
 		file_locks[ n ] = MP.Lock()
 
@@ -1994,7 +2056,7 @@ def solve_true_cost_of_guessing ( optimizer, options, epsilon=1e-6 ):
 		with open( fname, 'wb' ) as f:
 			pickle.dump( saved_data, f, pickle.HIGHEST_PROTOCOL )
 			f.flush()
-			os.fdatasync( f.fileno() )
+			os.fsync( f.fileno() )
 
 
 	jobs_capacity = int( 1.5 * MP.cpu_count() )
@@ -2120,6 +2182,7 @@ def solve_true_cost_of_guessing ( optimizer, options, epsilon=1e-6 ):
 
 		# don't care who's active; just clean up any zombies at end stage
 		MP.active_children()
+		#break
 
 	# _Now_ we care, because active children mean we can't read results yet.
 	processes = MP.active_children()
@@ -2149,13 +2212,36 @@ def solve_true_cost_of_guessing ( optimizer, options, epsilon=1e-6 ):
 		if node in ptcTree:
 			to_process.extend( ptcTree[ node ] )
 		last = node
-
+	#II() #data[11]  data[11][0]
 	import csv, cStringIO
 	csvdata = cStringIO.StringIO()
 	writer = csv.writer( csvdata ); writer.writerows( data )
 	print csvdata.getvalue()
 	chdir( pwd )
 
+	k = 0 #data index
+	s = 0 #stage index
+	icount = 0 #to average
+	cost_stage = []	
+	cost_stage.append(0)
+	sflag = ()	
+	for iaux in data:		
+		#print(iaux)
+		if k>=2:
+			if data[k] != sflag:
+				icount = icount + 1								
+				cost_stage[s] = cost_stage[s] + data[k][2]				
+			else:	
+				cost_stage[s] = cost_stage[s]/icount							
+				s=s+1
+				cost_stage.append(0)
+				icount = 0
+		k = k + 1
+	cost_stage[s] = cost_stage[s]/icount # For last stage cost
+	
+	#print(cost_stage[0])
+	#print(cost_stage[1])
+	print ('Zeciu = ', sum(cost_stage))		
 
 def temoa_solve ( model ):
 	from sys import argv, version_info
