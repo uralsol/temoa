@@ -210,7 +210,6 @@ class TemoaConfig( object ):
 		self.mga              = None # mga slack value
 		self.mga_iter         = None
 		self.mga_weight       = None
-		self.generateText	  = None
 
 		# To keep consistent with Kevin's argumetn parser, will be removed in the futre.
 		self.graph_format     = None
@@ -273,10 +272,6 @@ class TemoaConfig( object ):
 		r'--saveEXCEL\b'
 		self.saveEXCEL = True
 		
-	def t_generateText(self, t):
-		r'--generateText\b'
-		self.generateText = True
-	
 	def t_how_to_cite(self, t):
 		r'--how_to_cite\b'
 		self.how_to_cite = True
