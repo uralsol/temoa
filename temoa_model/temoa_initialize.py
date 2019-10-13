@@ -920,11 +920,11 @@ time-slice (s,dd).
 			timeslice = M.time_of_day.first()
 		else:
 			timeslice = M.time_of_day.next(timeslice)
-		time += value( M.SegFrac[s, timeslice])*8760*7/(season_length*365) #hourly repsented by time slice (s,timeslice) on a daily basis.
+		time += value( M.SegFrac[s, timeslice])*8760/(season_length*365) #hourly repsented by time slice (s,timeslice) on a daily basis.
 	if time <= value ( M.MaxShiftingtime[c]):
 		shifting_possibility_forward = 1
-	elif (time - value( M.SegFrac[s, dd])*8760*7/(season_length*365)) < value(M.MaxShiftingtime[c]):
-		shifting_possibility_forward = min(1,(value ( M.MaxShiftingtime[c]) - (time - value( M.SegFrac[s, dd])*8760*7/(season_length*365))) / (value( M.SegFrac[s, d])*8760*7/(season_length*365)))
+	elif (time - value( M.SegFrac[s, dd])*8760/(season_length*365)) < value(M.MaxShiftingtime[c]):
+		shifting_possibility_forward = min(1,(value ( M.MaxShiftingtime[c]) - (time - value( M.SegFrac[s, dd])*8760/(season_length*365))) / (value( M.SegFrac[s, d])*8760/(season_length*365)))
 	else:
 		shifting_possibility_forward = 0
 	
@@ -937,17 +937,16 @@ time-slice (s,dd).
 			timeslice = M.time_of_day.first()
 		else:
 			timeslice = M.time_of_day.next(timeslice)
-		time += value( M.SegFrac[s, timeslice])*8760*7/(season_length*365) 
+		time += value( M.SegFrac[s, timeslice])*8760/(season_length*365) 
 	if time <= value ( M.MaxShiftingtime[c]):
 		shifting_possibility_backward = 1
-	elif (time - value( M.SegFrac[s, d])*8760*7/(season_length*365)) < value(M.MaxShiftingtime[c]):
-		shifting_possibility_backward = min(1,(value ( M.MaxShiftingtime[c]) - (time - value( M.SegFrac[s, d])*8760*7/(season_length*365))) / (value( M.SegFrac[s, dd])*8760*7/(season_length*365)))
+	elif (time - value( M.SegFrac[s, d])*8760/(season_length*365)) < value(M.MaxShiftingtime[c]):
+		shifting_possibility_backward = min(1,(value ( M.MaxShiftingtime[c]) - (time - value( M.SegFrac[s, d])*8760/(season_length*365))) / (value( M.SegFrac[s, dd])*8760/(season_length*365)))
 	else:
 		shifting_possibility_backward = 0
 
 	shifting_possibility = max(shifting_possibility_forward, shifting_possibility_backward)
-
-
+	
 	
 
 
