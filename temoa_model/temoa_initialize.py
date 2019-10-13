@@ -873,6 +873,86 @@ CostInvest parameter.
 
 	return indices
 
+def DemandResponseCommodities ( M ):
+	"""Read the commodities in the DemandResponse parameters"""
+
+	indices = set(
+	  (c)
+
+	  for p, c in M.DemandResponse.sparse_iterkeys()
+	)
+
+	return indices
+
+
+def DemandResponseCommodities_ShiftingLimit ( M ):
+	"""Read the commodities in the MaxShiftingtime parameters"""
+
+	indices = set(
+	  (c)
+
+	  for c in M.MaxShiftingtime.sparse_iterkeys()
+	)
+
+	return indices
+
+
+
+def DemandShiftingTimeslices ( M, c, s, d, dd):
+	"""\
+Meeting a demand service can't be postponed beyound a certain time specified in MaxShiftingtime
+parameter. Here we are developing coefficeints that limit the maximum amount of energy that can
+be shifted from time-slice (s,d) to time-slice (s,dd). If MaxShiftingtime for the commodity c 
+is shorter than the time (in hours) between the two time-slices, the the coefficeint is 1 meaning
+that all the demand in time-slice (s,d) can potentially be shifted to time-slice (s,dd). If the
+two time-slices are sufficeicntly far apart the coefficeint gets a zero value. Between these two 
+extremes, there might be cases where a fraction of demand in time-slice (s,d) can be shifted to 
+time-slice (s,dd). 
+"""
+
+
+	shifting_possibility_forward = 0
+	season_length = sum( value(M.SegFrac[s,timeofday]) for timeofday in M.time_of_day)
+	time = 0
+	timeslice = d
+	while (timeslice!=dd):
+		if timeslice==M.time_of_day.last():
+			timeslice = M.time_of_day.first()
+		else:
+			timeslice = M.time_of_day.next(timeslice)
+		time += value( M.SegFrac[s, timeslice])*8760*7/(season_length*365) #hourly repsented by time slice (s,timeslice) on a daily basis.
+	if time <= value ( M.MaxShiftingtime[c]):
+		shifting_possibility_forward = 1
+	elif (time - value( M.SegFrac[s, dd])*8760*7/(season_length*365)) < value(M.MaxShiftingtime[c]):
+		shifting_possibility_forward = min(1,(value ( M.MaxShiftingtime[c]) - (time - value( M.SegFrac[s, dd])*8760*7/(season_length*365))) / (value( M.SegFrac[s, d])*8760*7/(season_length*365)))
+	else:
+		shifting_possibility_forward = 0
+	
+	
+	shifting_possibility_backward = 0
+	time = 0
+	timeslice = dd
+	while (timeslice!=d):
+		if timeslice==M.time_of_day.last():
+			timeslice = M.time_of_day.first()
+		else:
+			timeslice = M.time_of_day.next(timeslice)
+		time += value( M.SegFrac[s, timeslice])*8760*7/(season_length*365) 
+	if time <= value ( M.MaxShiftingtime[c]):
+		shifting_possibility_backward = 1
+	elif (time - value( M.SegFrac[s, d])*8760*7/(season_length*365)) < value(M.MaxShiftingtime[c]):
+		shifting_possibility_backward = min(1,(value ( M.MaxShiftingtime[c]) - (time - value( M.SegFrac[s, d])*8760*7/(season_length*365))) / (value( M.SegFrac[s, dd])*8760*7/(season_length*365)))
+	else:
+		shifting_possibility_backward = 0
+
+	shifting_possibility = max(shifting_possibility_forward, shifting_possibility_backward)
+
+
+	
+
+
+
+	return shifting_possibility
 
 # End parameters
 ##############################################################################
@@ -907,6 +987,32 @@ def ActivityVariableIndices ( M ):
 
 def ActivityByPeriodAndProcessVarIndices ( M ):
 	return M.helper_activeActivity_ptv
+
+
+def LoadShiftedIndices( M ):
+
+	indices = set(
+		(p, c, s, d)
+		for p, c in M.DemandResponse.sparse_iterkeys()
+		for s in M.time_season
+		for d in M.time_of_day
+	)
+
+	return indices
+
+
+
+def InterTemporalLoadShiftedIndices (M):
+
+	indices = set(
+		(p, c, s, d, dd)
+		for p, c in M.DemandResponse.sparse_iterkeys()
+		for s in M.time_season
+		for d in M.time_of_day
+		for dd in M.time_of_day if (dd!=d and c not in M.commodity_demandresponse_shiftinglimit) or (dd!=d and c in M.commodity_demandresponse_shiftinglimit and value(M.DemandShiftingPossibility[c, s, d, dd])!=0)
+	)
+	
+	return indices
 
 
 # End variables

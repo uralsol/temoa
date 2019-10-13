@@ -152,8 +152,24 @@ def PeriodCost_rule ( M, p ):
 	  for S_p, S_t, S_v in M.CostVariable.sparse_iterkeys()
 	  if S_p == p
 	)
+	
 
-	period_costs = (loan_costs + fixed_costs + variable_costs)
+
+	DR_cost = 0
+
+	for comm in M.commodity_demandresponse:
+		if (p,comm) in M.DemandResponse.sparse_iterkeys():
+			DR_cost = sum(
+				M.V_LoadShifted[p, comm, s, d]
+				for s in M.time_season
+				for d in M.time_of_day
+				)
+
+
+
+	DR_cost = DR_cost * 0.00001
+
+	period_costs = (loan_costs + fixed_costs + variable_costs + DR_cost)
 	return period_costs
 
 
@@ -967,7 +983,16 @@ could be more tightly specified and could have at least one input data anomaly.
 
 	DemandConstraintErrorCheck( supply, p, s, d, dem )
 
-	expr = (supply == M.Demand[p, dem] * M.DemandSpecificDistribution[s, d, dem])
+	if (p,dem) in M.DemandResponse.sparse_iterkeys() and dem not in M.MaxShiftingtime.sparse_iterkeys():
+
+		expr = (supply + M.V_LoadShifted[p, dem, s, d] == M.Demand[p, dem] * M.DemandSpecificDistribution[s, d, dem] +sum( M.V_InterTemporalLoadShifted[p, dem, s, dd, d] for dd in M.time_of_day if dd!=d))
+
+	elif (p,dem) in M.DemandResponse.sparse_iterkeys() and dem in M.MaxShiftingtime.sparse_iterkeys():
+
+		expr = (supply + M.V_LoadShifted[p, dem, s, d] == M.Demand[p, dem] * M.DemandSpecificDistribution[s, d, dem] +sum( M.V_InterTemporalLoadShifted[p, dem, s, dd, d] for dd in M.time_of_day if dd!=d and value(M.DemandShiftingPossibility[dem, s, dd, d])!=0))
+
+	else:
+		expr = (supply == M.Demand[p, dem] * M.DemandSpecificDistribution[s, d, dem] )
 
 	return expr
 
@@ -1410,6 +1435,35 @@ we write this equation for all the time-slices defined in the database in each r
 
 	return (expr_left >= expr_right)
 
+
+def LoadShiftedBalance_Constraint ( M, p, dem, s, d):
+
+	if dem not in M.commodity_demandresponse_shiftinglimit:
+		distributed_load = sum( M.V_InterTemporalLoadShifted[p, dem, s, d, dd]
+			for dd in M.time_of_day if dd!=d)
+	else:
+		distributed_load = sum( M.V_InterTemporalLoadShifted[p, dem, s, d, dd]
+			for dd in M.time_of_day if dd!=d and M.DemandShiftingPossibility[dem, s, d, dd]!=0)		
+
+	expr = (M.V_LoadShifted[p, dem, s, d] == distributed_load)
+
+	return expr
+
+def MaxShiftableLoad_Constraint ( M, p, dem, s, d):
+
+	expr = (M.V_LoadShifted[p, dem, s, d] <= M.Demand[p, dem] * M.DemandSpecificDistribution[s, d, dem] * M.DemandResponse[p, dem])
+
+	return expr
+
+def InterTemporalLoadShifting_Constraint (M, p, dem, s, d, dd):
+
+	if dem not in M.commodity_demandresponse_shiftinglimit: 
+		return Constraint.Skip
+		
+	else:
+		expr = (M.V_InterTemporalLoadShifted[p, dem, s, d, dd] <= M.V_LoadShifted[p, dem, s, d] * M.DemandShiftingPossibility[dem, s, d, dd])
+
+	return expr
 
 # End additional and derived (informational) variable constraints
 ##############################################################################

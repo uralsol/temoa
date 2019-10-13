@@ -183,6 +183,12 @@ def temoa_create_model ( name='The Temoa Energy System Model' ):
     # Initial storage charge level, expressed as fraction of full energy capacity
     M.StorageInit = Param(M.tech_storage, default=1)
 
+    M.DemandResponse = Param( M.time_optimize, M.commodity_demand)
+    M.commodity_demandresponse = Set(dimen=1, initialize=DemandResponseCommodities)
+    M.MaxShiftingtime = Param( M.commodity_demandresponse) #We can't shift meeting a service demand too far. The maximum in hour is specified here.
+    M.commodity_demandresponse_shiftinglimit = Set(dimen=1, initialize=DemandResponseCommodities_ShiftingLimit)
+    M.DemandShiftingPossibility = Param( M.commodity_demandresponse_shiftinglimit, M.time_season, M.time_of_day, M.time_of_day, initialize=DemandShiftingTimeslices)
+
     # Decision Variables--------------------------------------------------------
     #   Base decision variables
     M.FlowVar_psditvo = Set( dimen=7, initialize=FlowVariableIndices )
@@ -190,6 +196,10 @@ def temoa_create_model ( name='The Temoa Energy System Model' ):
     M.V_FlowOut = Var( M.FlowVar_psditvo, domain=NonNegativeReals )
     M.CurtailmentVar_psditvo = Set( dimen=7, initialize=CurtailmentVariableIndices )
     M.V_Curtailment = Var( M.CurtailmentVar_psditvo, domain=NonNegativeReals )
+    M.LoadShifted_pcsd = Set( dimen=4, initialize=LoadShiftedIndices)
+    M.V_LoadShifted = Var( M.LoadShifted_pcsd, domain=NonNegativeReals ) #load that is not met from commodity c in period p, season s and time of day d
+    M.InterTemporalLoadShifted_pcsdf = Set( dimen=5, initialize=InterTemporalLoadShiftedIndices) 
+    M.V_InterTemporalLoadShifted = Var( M.InterTemporalLoadShifted_pcsdf, domain=NonNegativeReals ) #load from commodity c shifted from timeslice d in season s to timeslice f in the same season in period p
     
     # Derived decision variables
     M.ActivityVar_psdtv = Set( dimen=5, initialize=ActivityVariableIndices )
@@ -284,11 +294,11 @@ def temoa_create_model ( name='The Temoa Energy System Model' ):
       M.DemandConstraint_psdc,  
       rule=Demand_Constraint )
 
-    M.DemandActivityConstraint_psdtv_dem_s0d0 = Set( 
-       dimen=8, initialize=DemandActivityConstraintIndices )
-    M.DemandActivityConstraint   = Constraint( 
-      M.DemandActivityConstraint_psdtv_dem_s0d0, 
-      rule=DemandActivity_Constraint )
+    #M.DemandActivityConstraint_psdtv_dem_s0d0 = Set( 
+    #   dimen=8, initialize=DemandActivityConstraintIndices )
+    #M.DemandActivityConstraint   = Constraint( 
+    #  M.DemandActivityConstraint_psdtv_dem_s0d0, 
+    #  rule=DemandActivity_Constraint )
 
     M.ProcessBalanceConstraint_psditvo = Set(
       dimen=7, initialize=ProcessBalanceConstraintIndices )
@@ -464,6 +474,24 @@ def temoa_create_model ( name='The Temoa Energy System Model' ):
       M.MinActivityGroup_pg, 
       rule=MinActivityGroup_Constraint )
     
+    
+    #DR constraints
+    M.LoadShiftedBalance = Constraint(
+        M.LoadShifted_pcsd,
+        rule=LoadShiftedBalance_Constraint )
+
+    M.MaxShiftableLoad = Constraint(
+        M.LoadShifted_pcsd,
+        rule=MaxShiftableLoad_Constraint )
+
+
+    M.InterTemporalLoadShifting = Constraint(
+        M.InterTemporalLoadShifted_pcsdf,
+        rule=InterTemporalLoadShifting_Constraint )
+
+
+
+
     return M
 
 model = temoa_create_model()
