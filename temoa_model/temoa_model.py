@@ -257,8 +257,6 @@ def temoa_create_model(name="Temoa"):
         M.CapacityAvailableVar_pt, domain=NonNegativeReals
     )
 
-    # This derived variable is used in MGA objective function:
-
     # ---------------------------------------------------------------
     # Declare the Objective Function.
     # ---------------------------------------------------------------
