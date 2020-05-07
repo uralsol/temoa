@@ -3,19 +3,15 @@
 """
 Tools for Energy Model Optimization and Analysis (Temoa): 
 An open source framework for energy systems optimization modeling
-
 Copyright (C) 2015,  NC State University
-
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.
-
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
-
 A complete copy of the GNU General Public License v2 (GPLv2) is available 
 in LICENSE.txt.  Users uncompressing this from an archive may not have 
 received this license file.  If not, see <http://www.gnu.org/licenses/>.
@@ -68,6 +64,8 @@ def temoa_create_model(name="Temoa"):
     M.tech_curtailment = Set(within=M.tech_all)
     M.groups = Set(dimen=1) # Define groups for technologies
     M.tech_groups = Set(within=M.tech_all) # Define techs used in groups
+    M.tech_uniform = Set(within=M.tech_all) # Define techs with no seasonal and diurnal variation
+
 
     # Define commodity-related sets
     M.commodity_demand = Set()
@@ -233,8 +231,11 @@ def temoa_create_model(name="Temoa"):
     # summed over.
     # ---------------------------------------------------------------
     # Define base decision variables
-    M.FlowVar_psditvo = Set(dimen=7, initialize=FlowVariableIndices)
+    M.FlowVar_psditvo = Set(dimen=7, initialize=FlowVariableIndices_nonuniform)
     M.V_FlowOut = Var(M.FlowVar_psditvo, domain=NonNegativeReals)
+    M.FlowVar_pitvo = Set(dimen=5, initialize=FlowVariableIndices_uniform)
+    M.V_FlowOut_Annual = Var(M.FlowVar_pitvo, domain=NonNegativeReals)
+
 
     M.CurtailmentVar_psditvo = Set(dimen=7, initialize=CurtailmentVariableIndices)
     M.V_Curtailment = Var(M.CurtailmentVar_psditvo, domain=NonNegativeReals)
@@ -257,7 +258,6 @@ def temoa_create_model(name="Temoa"):
     )
 
     # This derived variable is used in MGA objective function:
-    M.V_ActivityByTech = Var(M.tech_all, domain=NonNegativeReals)
 
     # ---------------------------------------------------------------
     # Declare the Objective Function.
@@ -273,11 +273,14 @@ def temoa_create_model(name="Temoa"):
     # ---------------------------------------------------------------
 
     # Declare constraints to calculate derived decision variables
-    M.CapacityConstraint_psdtv = Set(dimen=5, initialize=CapacityConstraintIndices)
 
-    M.CapacityConstraint = Constraint(M.CapacityConstraint_psdtv, rule=Capacity_Constraint)
+    M.CapacityConstraint_nonuniform_psdtv = Set(dimen=5, initialize=CapacityConstraintIndices_nonuniform)
+    M.CapacityConstraint_nonuniform = Constraint(
+        M.CapacityConstraint_nonuniform_psdtv, rule=Capacity_nonuniform_Constraint)
 
-    M.ActivityByTechConstraint = Constraint(M.tech_all, rule=ActivityByTech_Constraint)
+    M.CapacityConstraint_uniform_ptv = Set(dimen=3, initialize=CapacityConstraintIndices_uniform)
+    M.CapacityConstraint_uniform = Constraint(
+        M.CapacityConstraint_uniform_ptv, rule=Capacity_uniform_Constraint)
 
     M.CapacityAvailableByPeriodAndTechConstraint = Constraint(
         M.CapacityAvailableVar_pt, rule=CapacityAvailableByPeriodAndTech_Constraint
@@ -304,11 +307,18 @@ def temoa_create_model(name="Temoa"):
     )
 
     M.CommodityBalanceConstraint_psdc = Set(
-        dimen=4, initialize=CommodityBalanceConstraintIndices
+        dimen=4, initialize=CommodityBalanceConstraintIndices_nonuniform
     )
-    M.CommodityBalanceConstraint = Constraint(
-        M.CommodityBalanceConstraint_psdc, rule=CommodityBalance_Constraint
+    M.CommodityBalanceConstraint_nonuniform = Constraint(
+        M.CommodityBalanceConstraint_psdc, rule=CommodityBalance_nonuniform_Constraint
     )
+
+    M.CommodityBalanceConstraint_pc = Set(
+        dimen=2, initialize=CommodityBalanceConstraintIndices_uniform
+    )
+    M.CommodityBalanceConstraint_uniform = Constraint(
+        M.CommodityBalanceConstraint_pc, rule=CommodityBalance_uniform_Constraint
+    )    
 
     M.ResourceConstraint_pr = Set(
         dimen=2, initialize=lambda M: M.ResourceBound.sparse_iterkeys()
@@ -444,19 +454,32 @@ def temoa_create_model(name="Temoa"):
     )
 
     M.TechInputSplitConstraint_psditv = Set(
-        dimen=6, initialize=TechInputSplitConstraintIndices
+        dimen=6, initialize=TechInputSplitConstraintIndices_nonuniform
     )
-    M.TechInputSplitConstraint = Constraint(
-        M.TechInputSplitConstraint_psditv, rule=TechInputSplit_Constraint
+    M.TechInputSplitConstraint_nonuniform = Constraint(
+        M.TechInputSplitConstraint_psditv, rule=TechInputSplit_nonuniform_Constraint
+    )
+
+    M.TechInputSplitConstraint_pitv = Set(
+        dimen=4, initialize=TechInputSplitConstraintIndices_uniform
+    )
+    M.TechInputSplitConstraint_uniform = Constraint(
+        M.TechInputSplitConstraint_pitv, rule=TechInputSplit_uniform_Constraint
     )
 
     M.TechOutputSplitConstraint_psdtvo = Set(
-        dimen=6, initialize=TechOutputSplitConstraintIndices
+        dimen=6, initialize=TechOutputSplitConstraintIndices_nonuniform
     )
-    M.TechOutputSplitConstraint = Constraint(
-        M.TechOutputSplitConstraint_psdtvo, rule=TechOutputSplit_Constraint
+    M.TechOutputSplitConstraint_nonuniform = Constraint(
+        M.TechOutputSplitConstraint_psdtvo, rule=TechOutputSplit_nonuniform_Constraint
     )
 
+    M.TechOutputSplitConstraint_ptvo = Set(
+        dimen=4, initialize=TechOutputSplitConstraintIndices_uniform
+    )
+    M.TechOutputSplitConstraint_uniform = Constraint(
+        M.TechOutputSplitConstraint_ptvo, rule=TechOutputSplit_uniform_Constraint
+    )
     return M
 
 

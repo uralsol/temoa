@@ -1,19 +1,15 @@
 """
 Tools for Energy Model Optimization and Analysis (Temoa): 
 An open source framework for energy systems optimization modeling
-
 Copyright (C) 2015,  NC State University
-
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.
-
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
-
 A complete copy of the GNU General Public License v2 (GPLv2) is available 
 in LICENSE.txt.  Users uncompressing this from an archive may not have 
 received this license file.  If not, see <http://www.gnu.org/licenses/>.
@@ -53,6 +49,7 @@ class TemoaModel( AbstractModel ):
 		self.processOutputs = dict()
 		self.processLoans = dict()
 		self.activeFlow_psditvo = None
+		self.activeFlow_pitvo = None
 		self.activeFlowInStorage_psditvo = None
 		self.activeCurtailment_psditvo = None
 		self.activeActivity_ptv = None
@@ -98,7 +95,7 @@ output carrier. Not currently used.
 def get_str_padding ( obj ):
 	return len(str( obj ))
 
-def CommodityBalanceConstraintErrorCheck ( vflow_out, vflow_in, p, s, d, c ):
+def CommodityBalanceConstraintErrorCheck_nonuniform ( vflow_out, vflow_in, p, s, d, c ):
 	if int is type(vflow_out):
 		flow_in_expr = StringIO()
 		vflow_in.pprint( ostream=flow_in_expr )
@@ -114,6 +111,23 @@ def CommodityBalanceConstraintErrorCheck ( vflow_out, vflow_in, p, s, d, c ):
 		raise Exception( msg.format(
 		  c, s, d, p, flow_in_expr.getvalue()
 		))
+
+def CommodityBalanceConstraintErrorCheck_uniform ( vflow_out, vflow_in, p, c ):
+	if int is type(vflow_out):
+		flow_in_expr = StringIO()
+		vflow_in.pprint( ostream=flow_in_expr )
+		msg = ("Unable to meet an interprocess '{}' transfer in ({}, {}, {}).\n"
+		  'No flow out.  Constraint flow in:\n   {}\n'
+		  'Possible reasons:\n'
+		  " - Is there a missing period in set 'time_future'?\n"
+		  " - Is there a missing tech in set 'tech_resource'?\n"
+		  " - Is there a missing tech in set 'tech_production'?\n"
+		  " - Is there a missing commodity in set 'commodity_physical'?\n"
+		  ' - Are there missing entries in the Efficiency parameter?\n'
+		  ' - Does a process need a longer LifetimeProcess parameter setting?')
+		raise Exception( msg.format(
+		  c, p, flow_in_expr.getvalue()
+		))		
 
 def DemandConstraintErrorCheck ( supply, p, s, d, dem ):
 	if int is type( supply ):
@@ -629,12 +643,21 @@ def CreateSparseDicts ( M ):
 	M.activeFlow_psditvo = set(
 	  (p, s, d, i, t, v, o)
 
-	  for p,t in M.processVintages.keys()
+	  for p,t in M.processVintages.keys() if t not in M.tech_uniform
 	  for v in M.processVintages[ p, t ]
 	  for i in M.processInputs[ p, t, v ]
 	  for o in M.ProcessOutputsByInput[ p, t, v, i ]
 	  for s in M.time_season
 	  for d in M.time_of_day
+	)
+
+	M.activeFlow_pitvo = set(
+	  (p, i, t, v, o)
+
+	  for p,t in M.processVintages.keys() if t in M.tech_uniform
+	  for v in M.processVintages[ p, t ]
+	  for i in M.processInputs[ p, t, v ]
+	  for o in M.ProcessOutputsByInput[ p, t, v, i ]
 	)
 
 	M.activeFlowInStorage_psditvo = set(
@@ -831,8 +854,12 @@ def CapacityVariableIndices ( M ):
 def CapacityAvailableVariableIndices ( M ):
 	return M.activeCapacityAvailable_pt
 
-def FlowVariableIndices ( M ):
+def FlowVariableIndices_nonuniform ( M ):
 	return M.activeFlow_psditvo
+
+
+def FlowVariableIndices_uniform ( M ):
+	return M.activeFlow_pitvo
 
 def FlowInStorageVariableIndices ( M ):
 	return M.activeFlowInStorage_psditvo
@@ -841,17 +868,27 @@ def FlowInStorageVariableIndices ( M ):
 def CurtailmentVariableIndices ( M ):
 	return M.activeCurtailment_psditvo
 
-def CapacityConstraintIndices ( M ):
+
+def CapacityConstraintIndices_nonuniform ( M ):
 	capacity_indices = set(
 	  (p, s, d, t, v)
 
-	  for p, t, v in M.activeActivity_ptv
+	  for p, t, v in M.activeActivity_ptv if t not in M.tech_uniform
 	  for s in M.time_season
 	  for d in M.time_of_day
 	)
 
 	return capacity_indices
 
+def CapacityConstraintIndices_uniform ( M ):
+	capacity_indices = set(
+	  (p, t, v)
+
+	  for p, t, v in M.activeActivity_ptv if t in M.tech_uniform
+
+	)
+
+	return capacity_indices
 
 # ---------------------------------------------------------------
 # Create sparse indices for constraints.
@@ -870,7 +907,7 @@ ensure demand activity remains consistent across time slices.
 	first_s = M.time_season.first()
 	first_d = M.time_of_day.first()
 	for p,t,v,dem in M.ProcessInputsByOutput.keys():
-		if dem in M.commodity_demand:
+		if dem in M.commodity_demand and t not in M.tech_uniform:
 			for s in M.time_season:
 				for d in M.time_of_day:
 					if s != first_s or d != first_d:
@@ -908,7 +945,7 @@ def BaseloadDiurnalConstraintIndices ( M ):
 
 	return indices
 
-def CommodityBalanceConstraintIndices ( M ):
+def CommodityBalanceConstraintIndices_nonuniform ( M ):
 	# We only consider those commodities that have both upstream and downstream
 	# processes during a specific period.
 	period_commodity_with_up = set( M.commodityUStreamProcess.keys() )
@@ -919,9 +956,26 @@ def CommodityBalanceConstraintIndices ( M ):
 
 	  for p, o in period_commodity
 	  for t, v in M.commodityUStreamProcess[ p, o ]
-	  if t not in M.tech_storage
+	  if t not in M.tech_storage and t not in M.tech_uniform
 	  for s in M.time_season
 	  for d in M.time_of_day
+	)
+
+	return indices
+
+
+def CommodityBalanceConstraintIndices_uniform ( M ):
+	# We only consider those commodities that have both upstream and downstream
+	# processes during a specific period.
+	period_commodity_with_up = set( M.commodityUStreamProcess.keys() )
+	period_commodity_with_dn = set( M.commodityDStreamProcess.keys() )
+	period_commodity = period_commodity_with_up.intersection( period_commodity_with_dn )
+	indices = set(
+	  (p, o)
+
+	  for p, o in period_commodity
+	  for t, v in M.commodityUStreamProcess[ p, o ]
+	  if t not in M.tech_storage and t in M.tech_uniform
 	)
 
 	return indices
@@ -982,11 +1036,11 @@ def ReserveMarginIndices ( M ):
 	)
 	return indices
 
-def TechInputSplitConstraintIndices ( M ):
+def TechInputSplitConstraintIndices_nonuniform ( M ):
 	indices = set(
 	  (p, s, d, i, t, v)
 
-	  for p, i, t in M.inputsplitVintages.keys()
+	  for p, i, t in M.inputsplitVintages.keys() if t not in M.tech_uniform
 	  for v in M.inputsplitVintages[ p, i, t ]
 	  for s in M.time_season
 	  for d in M.time_of_day
@@ -994,14 +1048,34 @@ def TechInputSplitConstraintIndices ( M ):
 
 	return indices
 
-def TechOutputSplitConstraintIndices ( M ):
+def TechInputSplitConstraintIndices_uniform ( M ):
+	indices = set(
+	  (p, i, t, v)
+
+	  for p, i, t in M.inputsplitVintages.keys() if t in M.tech_uniform
+	  for v in M.inputsplitVintages[ p, i, t ]
+	)
+
+	return indices	
+
+def TechOutputSplitConstraintIndices_nonuniform ( M ):
 	indices = set(
 	  (p, s, d, t, v, o)
 
-	  for p, t, o in M.outputsplitVintages.keys()
+	  for p, t, o in M.outputsplitVintages.keys() if t not in M.tech_uniform
 	  for v in M.outputsplitVintages[ p, t, o ]
 	  for s in M.time_season
 	  for d in M.time_of_day
+	)
+
+	return indices
+
+def TechOutputSplitConstraintIndices_uniform ( M ):
+	indices = set(
+	  (p, t, v, o)
+
+	  for p, t, o in M.outputsplitVintages.keys() if t in M.tech_uniform
+	  for v in M.outputsplitVintages[ p, t, o ]
 	)
 
 	return indices
