@@ -64,7 +64,7 @@ tech_uniform set.
 
 
 """
-    if t in M.tech_storage or ((t,v) not in M.CostInvest.keys() and v in M.time_optimize):
+    if t in M.tech_storage:
         return Constraint.Skip
     # The expressions below are defined in-line to minimize the amount of
     # expression cloning taking place with Pyomo.
@@ -114,7 +114,7 @@ uniform output across a year.
    \forall \{p, t, v\} \in \Theta_{\text{Activity}} 
 """
     
-    if t in M.tech_storage or ((t,v) not in M.CostInvest.keys() and v in M.time_optimize):
+    if t in M.tech_storage:
         return Constraint.Skip    
 
     CF = 1 #placeholder CF
