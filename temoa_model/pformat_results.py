@@ -126,6 +126,16 @@ def pformat_results ( pyomo_instance, pyomo_result, options ):
 	MPL = m.ModelProcessLife
 	LLN = m.LifetimeLoanProcess
 	x   = 1 + GDR    # convenience variable, nothing more
+	if 'temoa_model/config_sample_myopic' in options.file_location:
+		original_dbpath = options.output
+		con = sqlite3.connect(original_dbpath)
+		cur = con.cursor()
+		time_periods = cur.execute("SELECT t_periods FROM time_periods WHERE flag='f'").fetchall()
+		P_0 = time_periods[0][0]
+		P_e = time_periods[-1][0]
+		con.commit()
+		con.close()
+
 
 	# Extract optimal decision variable values related to commodity flow:
 	for r, p, s, d, t, v in m.V_StorageLevel:
@@ -202,7 +212,7 @@ def pformat_results ( pyomo_instance, pyomo_result, options ):
 	svars[ 'Objective' ]["('"+obj_name+"')"] = obj_value
 
 	for r, t, v in m.CostInvest.sparse_iterkeys():   # Returns only non-zero values
-	
+		if 'temoa_model/config_sample_myopic' in options.file_location and v == max(m.time_optimize): continue
 		icost = value( m.V_Capacity[r, t, v] )
 		if abs(icost) < epsilon: continue
 		icost *= value( m.CostInvest[r, t, v] )*(
@@ -224,6 +234,7 @@ def pformat_results ( pyomo_instance, pyomo_result, options ):
 
 
 	for r, p, t, v in m.CostFixed.sparse_iterkeys():
+		if 'temoa_model/config_sample_myopic' in options.file_location and v == max(m.time_optimize): continue
 		fcost = value( m.V_Capacity[r, t, v] )
 		if abs(fcost) < epsilon: continue
 
@@ -238,6 +249,7 @@ def pformat_results ( pyomo_instance, pyomo_result, options ):
 		svars[	'Costs'	][ 'V_DiscountedFixedCostsByProcess', r, t, v] += fcost
 		
 	for r, p, t, v in m.CostVariable.sparse_iterkeys():
+		if 'temoa_model/config_sample_myopic' in options.file_location and v == max(m.time_optimize): continue
 		if t not in m.tech_annual:
 			vcost = sum(
 				value (m.V_FlowOut[r, p, S_s, S_d, S_i, t, v, S_o])
