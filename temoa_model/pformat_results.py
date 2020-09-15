@@ -126,7 +126,15 @@ def pformat_results ( pyomo_instance, pyomo_result, options ):
 	MPL = m.ModelProcessLife
 	LLN = m.LifetimeLoanProcess
 	x   = 1 + GDR    # convenience variable, nothing more
-
+	if 'temoa_model/config_sample_myopic' in options.file_location:
+		original_dbpath = options.output
+		con = sqlite3.connect(original_dbpath)
+		cur = con.cursor()
+		time_periods = cur.execute("SELECT t_periods FROM time_periods WHERE flag='f'").fetchall()
+		P_0 = time_periods[0][0]
+		P_e = time_periods[-1][0]
+		con.commit()
+		con.close()
 	# Extract optimal decision variable values related to commodity flow:
 	for r, p, s, d, t, v in m.V_StorageLevel:
 		val = value( m.V_StorageLevel[r, p, s, d, t, v] )
@@ -178,11 +186,17 @@ def pformat_results ( pyomo_instance, pyomo_result, options ):
 		svars['V_FlowIn'][r, p, s, d, i, t, v, o] = (val + value( m.V_FlowOut[r, p, s, d, i, t, v, o] )) / value(m.Efficiency[r, i, t, v, o])
 
 	# Extract optimal decision variable values related to capacity:
-	for r, t, v in m.V_Capacity:
-		val = value( m.V_Capacity[r, t, v] )
-		if abs(val) < epsilon: continue
-
-		svars['V_Capacity'][r, t, v] = val
+	if 'temoa_model/config_sample_myopic' not in options.file_location:
+		for r, t, v in m.V_Capacity:
+			val = value( m.V_Capacity[r, t, v] )
+			if abs(val) < epsilon: continue
+			svars['V_Capacity'][r, t, v] = val
+	else:
+		for r, t, v in m.V_Capacity:
+			if v in m.time_optimize:
+				val = value( m.V_Capacity[r, t, v] )
+				if abs(val) < epsilon: continue
+				svars['V_Capacity'][r, t, v] = val
 
 	for r, p, t in m.V_CapacityAvailableByPeriodAndTech:
 		val = value( m.V_CapacityAvailableByPeriodAndTech[r, p, t] )
@@ -450,8 +464,9 @@ def pformat_results ( pyomo_instance, pyomo_result, options ):
 		for table in svars.keys() :
 			if table in tables :
 				cur.execute("SELECT DISTINCT scenario FROM '"+tables[table]+"'")
-				for val in cur : 
-					if options.scenario == val[0]: # If scenario exists, delete
+				for val in cur :
+					# If scenario exists, delete unless it's a myopic run 
+					if options.scenario == val[0] and 'temoa_model/config_sample_myopic' not in options.file_location: 
 						cur.execute("DELETE FROM "+tables[table]+" \
 									WHERE scenario is '"+options.scenario+"'") 
 				if table == 'Objective' : # Only table without sector info
@@ -469,7 +484,29 @@ def pformat_results ( pyomo_instance, pyomo_result, options ):
 							cur.execute("INSERT INTO "+tables[table]+ \
 										" VALUES('"+str(key[0])+"', '"+options.scenario+"','NULL', \
 											"+key_str[key_str.find(',')+1:]+","+str(svars[table][key])+");")	
-						else:						
+						else:
+
+							if 'temoa_model/config_sample_myopic' in options.file_location:
+							# When solving myopically, (t,v) might already exist in the database from 
+							# solving the previous time period (UNIQUE Constraint failure error). Here, 
+							# we make a query to see if (t,v) exists, and then add the costs associated
+							# with current time period to it. This is only the case with Output_tables 
+							# since it's the only output table with vintages and w/o periods.								
+								old_value = cur.execute("SELECT output_cost FROM Output_Costs WHERE \
+														regions = "+"'"+key[1]+ "' AND \
+														scenario = "+"'"+options.scenario+"' AND \
+														output_name = "+"'"+key[0]+ "' AND \
+														tech = "+"'"+key[2]+ "' AND \
+														vintage = "+str(key[3])+";").fetchall()
+								if old_value != []:
+									svars[table][key] += old_value[0][0]
+									cur.execute("DELETE FROM Output_Costs WHERE \
+												regions = "+"'"+key[1]+ "' AND \
+												scenario = "+"'"+options.scenario+"' AND \
+												output_name = "+"'"+key[0]+ "' AND \
+												tech = "+"'"+key[2]+ "' AND \
+												vintage = "+str(key[3])+";")									
+							
 							key_str = str((key[0],key[2],key[3]))
 							key_str = key_str[1:-1] # Remove parentheses
 							cur.execute("INSERT INTO "+tables[table]+ \
