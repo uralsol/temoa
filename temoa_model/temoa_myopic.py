@@ -18,7 +18,7 @@ A complete copy of the GNU General Public License v2 (GPLv2) is available
 in LICENSE.txt.  Users uncompressing this from an archive may not have 
 received this license file.  If not, see <http://www.gnu.org/licenses/>.
 
-This file aims at enabling the myopic solve using a sqlite database as 
+This file aims at enabling the rolling horizon solve using a sqlite database as 
 input. The algorithm works by: i) reading the time periods from the 
 original sqlite input database ii) iterating over individual periods and 
 creating a database with the previous buildups as existing capacity, 
@@ -30,6 +30,8 @@ import sqlite3
 import pandas as pd	
 from shutil import copyfile
 import os
+import sys
+from IPython import embed as IP
 
 def myopic_db_generator_solver ( self ):
 
@@ -48,8 +50,12 @@ def myopic_db_generator_solver ( self ):
 	# group 2 consists of non output tables in which "vintage" is a column name except for CostFixed and CostVariable (taken care of above)
 	tables_group2 = ['CapacityFactorProcess','CostInvest','DiscountRate', \
 					 'Efficiency','EmissionActivity','ExistingCapacity','LifetimeProcess']	
-	for i in range(0,len(time_periods)-1):
-		print ('Preparing the database for the period '+str(time_periods[i][0]))
+	
+	N = 1
+
+
+	for i in range(N-1,len(time_periods)-1):
+		print ('Preparing the database for the periods '+str(time_periods[i][0]))
 		new_db = self.options.path_to_db_io+"/"+db_name+"_myopic_"+str(time_periods[i][0])+self.options.output[loc2:]
 		copyfile(self.options.path_to_db_io+"/"+db_name+"_blank"+self.options.output[loc2:], new_db)
 		con = sqlite3.connect(new_db)
@@ -65,20 +71,20 @@ def myopic_db_generator_solver ( self ):
 		
 		# Delete row from Efficiency if (t,v) retires at the begining of current period (which is time_periods[i][0])
 		cur.execute("DELETE FROM Efficiency WHERE tech IN (SELECT tech FROM LifetimeProcess WHERE \
-					 LifetimeProcess.life_process+LifetimeProcess.vintage<="+str(time_periods[i][0])+") \
+					 LifetimeProcess.life_process+LifetimeProcess.vintage<="+str(time_periods[i-(N-1)][0])+") \
 					 AND vintage IN (SELECT vintage FROM LifetimeProcess WHERE LifetimeProcess.life_process+\
-					 LifetimeProcess.vintage<="+str(time_periods[i][0])+");")
+					 LifetimeProcess.vintage<="+str(time_periods[i-(N-1)][0])+");")
 		
 		# Delete row from Efficiency if (t,v) retires at the begining of current period (which is time_periods[i][0])
 		cur.execute("DELETE FROM Efficiency WHERE tech IN (SELECT tech FROM LifetimeTech WHERE \
-					 LifetimeTech.life+Efficiency.vintage<="+str(time_periods[i][0])+") AND \
+					 LifetimeTech.life+Efficiency.vintage<="+str(time_periods[i-(N-1)][0])+") AND \
 					 vintage NOT IN (SELECT vintage FROM LifetimeProcess WHERE LifetimeProcess.tech\
 					 =Efficiency.tech);")
 		
 		# If row is not deleted via the last two DELETE commands, it might still be invalid for period
 		#  time_periods[i][0] since they can have model default lifetime of 40 years. 
 		cur.execute("DELETE FROM Efficiency WHERE tech IN (SELECT tech FROM Efficiency WHERE \
-					40+Efficiency.vintage<="+str(time_periods[i][0])+") AND \
+					40+Efficiency.vintage<="+str(time_periods[i-(N-1)][0])+") AND \
 					tech NOT IN (SELECT tech FROM LifetimeTech) AND \
 					vintage NOT IN (SELECT vintage FROM LifetimeProcess WHERE LifetimeProcess.tech=Efficiency.tech);")
 		
@@ -96,7 +102,7 @@ def myopic_db_generator_solver ( self ):
     	# Start modifying other tables.
     	# ---------------------------------------------------------------
 		for table in tables_group1:
-			cur.execute("DELETE FROM "+table +" WHERE periods != "+str(time_periods[i][0])+";")
+			cur.execute("DELETE FROM "+table +" WHERE periods > "+str(time_periods[i][0])+" OR periods < "+str(time_periods[i-(N-1)][0])+";")
 
 
 		for table in tables_group2:
@@ -116,28 +122,41 @@ def myopic_db_generator_solver ( self ):
     	# ---------------------------------------------------------------
 
 
-		if i!=0:
+		if i!=(N-1):
 			df_new_ExistingCapacity = pd.read_sql_query("SELECT regions, tech, vintage, capacity FROM Output_V_Capacity \
-														 WHERE scenario="+"'"+str(self.options.scenario)+"';", con_org) 
+														 WHERE scenario="+"'"+str(self.options.scenario)+"' AND \
+														 vintage == "+str(time_periods[i-N][0])+";", con_org)
 			df_new_ExistingCapacity.columns = ['regions','tech','vintage','exist_cap']
 			df_new_ExistingCapacity.to_sql('ExistingCapacity',con, if_exists='append', index=False)
 	
-			#Create a copy of the first time period vintages for the current vintage 
+			#Create a copy of the first time period vintages for the two current vintage 
 			#to prevent infeasibility (if it is not an 'existing' vintage in the 
 			#original database and if it doesn't already have a current vintage). One example: 
 			# dummy technologies that have only the first time period vintage (p0)					
-			cur.execute("INSERT INTO Efficiency \
-						 SELECT DISTINCT regions,input_comm,tech,"+str(time_periods[i][0])+ \
-						 ",output_comm,efficiency,eff_notes FROM Efficiency WHERE tech NOT IN (SELECT tech \
-						 FROM Efficiency WHERE vintage<"+str(time_periods[0][0])+") AND tech NOT IN (SELECT \
-						 tech FROM Efficiency WHERE vintage="+str(time_periods[i][0])+");")
+			for j in range(0,N):
+				cur.execute("INSERT INTO Efficiency \
+							 SELECT DISTINCT regions,input_comm,tech,"+str(time_periods[i-j][0])+ \
+							 ",output_comm,efficiency,eff_notes FROM Efficiency WHERE tech NOT IN (SELECT tech \
+							 FROM Efficiency WHERE vintage<"+str(time_periods[0][0])+") AND tech NOT IN (SELECT \
+							 tech FROM Efficiency WHERE vintage="+str(time_periods[i-j][0])+");")
+
 
 			# delete (t,v) from efficiecny table if it doesn't appear in the ExistingCapacity (v is an existing vintage).
 			# (note that the model throws a warning if (t,v) is an existing vintage but it doesn't appear in ExistingCapacity)
 			cur.execute("DELETE FROM Efficiency \
-						 WHERE vintage < "+str(time_periods[i][0])+" AND vintage NOT IN (SELECT \
+						 WHERE vintage <= "+str(time_periods[i-N][0])+" AND vintage NOT IN (SELECT \
 						 vintage FROM ExistingCapacity WHERE Efficiency.tech=ExistingCapacity.tech);")
 		
+			# Discard the results associated with time_periods[i-N][0] P time_periods[i-N][0] period in rolling horizon fashion. Otherwise, UNIQUE CONSTRAINT error is thrown.
+			# Re Output_Costs, a delete is not needed because in pformat_results.py, future periods costs get added to what is already in the table
+   			cur_org.execute("DELETE FROM Output_CapacityByPeriodAndTech WHERE scenario="+"'"+str(self.options.scenario)+"' AND t_periods>"+str(time_periods[i-N][0]))
+   			cur_org.execute("DELETE FROM Output_Emissions WHERE scenario="+"'"+str(self.options.scenario)+"' AND t_periods>"+str(time_periods[i-N][0]))
+   			cur_org.execute("DELETE FROM Output_VFlow_In WHERE scenario="+"'"+str(self.options.scenario)+"' AND t_periods>"+str(time_periods[i-N][0]))
+   			cur_org.execute("DELETE FROM Output_VFlow_Out WHERE scenario="+"'"+str(self.options.scenario)+"' AND t_periods>"+str(time_periods[i-N][0]))
+   			cur_org.execute("DELETE FROM Output_V_Capacity WHERE scenario="+"'"+str(self.options.scenario)+"' AND vintage>"+str(time_periods[i-N][0]))
+   			cur_org.execute("DELETE FROM Output_Curtailment WHERE scenario="+"'"+str(self.options.scenario)+"' AND t_periods>"+str(time_periods[i-N][0]))
+   			con_org.commit()
+
 
     	# ---------------------------------------------------------------
     	# The Efficiency table is now ready. Continue modifying other tables.
@@ -152,31 +171,41 @@ def myopic_db_generator_solver ( self ):
 				cursor = con.execute("SELECT * FROM "+str(table[0]))
 				names = list(map(lambda x: x[0], cursor.description))
 				if 'vintage' in names:				
-					#in line 308, a copy of (t,v=p0) was added to the Efficiecny table for certain rows. What if (t,v=p0)
-					# had a cost or emissions? In a similar way, we need to add a copy of (t,v=p0) to other tables (except
-					# for Efficiency and ExistingCapacity) for the current period if the same conditions are met. 
 					if table[0]!='ExistingCapacity':
-						names = [str(time_periods[i][0]) if x=='vintage' else x for x in names]
-						cur.execute("INSERT INTO "+table[0]+" SELECT DISTINCT "+",".join(names)+\
-									 " FROM "+table[0]+" WHERE tech NOT IN (SELECT tech FROM "+table[0]+\
-									 " WHERE vintage<"+str(time_periods[0][0])+") AND tech NOT IN (SELECT tech FROM "+\
-									 table[0]+" WHERE vintage="+str(time_periods[i][0])+");"
-									 )
+						for j in range(0,N):
+							names = list(map(lambda x: x[0], cursor.description))
+							names = [str(time_periods[i-j][0]) if x=='vintage' else x for x in names]
+							cur.execute("INSERT INTO "+table[0]+" SELECT DISTINCT "+",".join(names)+\
+										 " FROM "+table[0]+" WHERE tech NOT IN (SELECT tech FROM "+table[0]+\
+										 " WHERE vintage<"+str(time_periods[0][0])+") AND tech NOT IN (SELECT tech FROM "+\
+										 table[0]+" WHERE vintage="+str(time_periods[i-j][0])+");"
+										 )
 					# For these two table we only want current vintages. 
 					if table[0] == 'CostInvest' or table[0] == 'DiscountRate':
-						cur.execute("DELETE FROM "+str(table[0])+" WHERE vintage!="+str(time_periods[i][0])+";")
+						cur.execute("DELETE FROM "+str(table[0])+" WHERE vintage > "+str(time_periods[i][0])+" OR vintage < "+str(time_periods[i-(N-1)][0])+";")
+					if table[0] == 'CostVariable' or table[0] == 'CostFixed':
+						cur.execute("DELETE FROM "+str(table[0])+" WHERE periods < vintage;")
 					# If (t,v) is not found in the Efficiecny table, deelte it from all the other tables
 					cur.execute("DELETE FROM "+str(table[0])+" WHERE tech IN (SELECT tech FROM Efficiency) AND vintage \
-								 NOT IN (SELECT vintage FROM Efficiency WHERE Efficiency.tech="+str(table[0])+".tech);")			
-			except:
-				pass
-		
+								 NOT IN (SELECT vintage FROM Efficiency WHERE Efficiency.tech="+str(table[0])+".tech);")
+			#except:
+			#	raise Exception(table[0],j)
+			except Exception as e:
+			    exception_type, exception_object, exception_traceback = sys.exc_info()
+			    filename = exception_traceback.tb_frame.f_code.co_filename
+			    line_number = exception_traceback.tb_lineno
+			    if line_number!=167:
+					print("Exception type: ", exception_type)
+					print("File name: ", filename)
+					print("Line number: ", line_number)
+					print("Table: ", table[0])
+			
 		cur.execute("UPDATE commodities SET comm_name = TRIM(comm_name, CHAR(37,10))")
 		# delete unused commodities otherwise the model throws an error
 
 		cur.execute("DELETE FROM commodities WHERE flag!='e' AND comm_name NOT IN (SELECT input_comm from Efficiency UNION SELECT output_comm from Efficiency);")
 		cur.execute("INSERT INTO `time_periods` (t_periods,flag) VALUES ("+str(time_periods[i+1][0])+",'f');")
-		cur.execute("UPDATE `time_periods` SET flag='e' WHERE t_periods < "+str(time_periods[i][0]))
+		cur.execute("UPDATE `time_periods` SET flag='e' WHERE t_periods < "+str(time_periods[i-(N-1)][0]))
 		con.commit()
 		con.close()
 
@@ -198,7 +227,7 @@ def myopic_db_generator_solver ( self ):
 		for line in ifile:
 			new_line = line.replace("--input=data_files/"+db_name, "--input=data_files/"+db_name+"_myopic_"+str(time_periods[i][0]))
 			# the temporary config file is created from the original config file. Since for individual periods we are 
-			# going to have a standard run, '--myopic' needs to be commented out. 
+			# going to have a standard run, '--rollinghorizon' needs to be commented out. 
 			new_line = new_line.replace("--myopic","#--myopic")
 			ofile.write(new_line)
 		ifile.close()

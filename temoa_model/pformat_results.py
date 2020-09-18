@@ -210,7 +210,8 @@ def pformat_results ( pyomo_instance, pyomo_result, options ):
 	svars[ 'Objective' ]["('"+obj_name+"')"] = obj_value
 
 	for r, t, v in m.CostInvest.sparse_iterkeys():   # Returns only non-zero values
-	
+		# for rolling horizon solve, only the new buidlups in the first period are of interest.
+		if 'temoa_model/config_sample_myopic' in options.file_location and v > min(m.time_optimize): continue	
 		icost = value( m.V_Capacity[r, t, v] )
 		if abs(icost) < epsilon: continue
 		icost *= value( m.CostInvest[r, t, v] )*(
@@ -232,6 +233,8 @@ def pformat_results ( pyomo_instance, pyomo_result, options ):
 
 
 	for r, p, t, v in m.CostFixed.sparse_iterkeys():
+		# for rolling horizon solve, only the fixed costs of the new buidlups in the first period are counted.
+		if 'temoa_model/config_sample_myopic' in options.file_location and (v > min(m.time_optimize) or p > min(m.time_optimize)): continue
 		fcost = value( m.V_Capacity[r, t, v] )
 		if abs(fcost) < epsilon: continue
 
@@ -246,6 +249,8 @@ def pformat_results ( pyomo_instance, pyomo_result, options ):
 		svars[	'Costs'	][ 'V_DiscountedFixedCostsByProcess', r, t, v] += fcost
 		
 	for r, p, t, v in m.CostVariable.sparse_iterkeys():
+		# for rolling horizon solve, only the variable costs of the new buidlups in the first period are counted.
+		if 'temoa_model/config_sample_myopic' in options.file_location and (v > min(m.time_optimize) or p > min(m.time_optimize)): continue
 		if t not in m.tech_annual:
 			vcost = sum(
 				value (m.V_FlowOut[r, p, S_s, S_d, S_i, t, v, S_o])
