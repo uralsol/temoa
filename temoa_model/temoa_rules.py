@@ -351,6 +351,16 @@ def PeriodCost_rule(M, p):
     MPL = M.ModelProcessLife
     x = 1 + GDR  # convenience variable, nothing more.
 
+    try: # if this is a myopic run, db_path_org is a global
+         # variable that references the original database
+      import sqlite3
+      con = sqlite3.connect(db_path_org)
+      cur = con.cursor()
+      time_periods = cur.execute("SELECT t_periods FROM time_periods WHERE flag='f'").fetchall()
+      P_0 = time_periods[0][0]
+    except:
+      pass
+
     loan_costs = sum(
         M.V_Capacity[r, S_t, S_v]
         * (

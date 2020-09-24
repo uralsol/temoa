@@ -18,12 +18,16 @@ A complete copy of the GNU General Public License v2 (GPLv2) is available
 in LICENSE.txt.  Users uncompressing this from an archive may not have 
 received this license file.  If not, see <http://www.gnu.org/licenses/>.
 
-This file aims at enabling the rolling horizon solve using a sqlite database as 
-input. The algorithm works by: i) reading the time periods from the 
-original sqlite input database ii) iterating over individual periods and 
-creating a database with the previous buildups as existing capacity, 
-iii) and finally running each periods at a time and writing the results 
-to the original database. 
+This file aims at enabling the myopic/rolling horizon solve using a sqlite 
+database as input. 
+The algorithm works by: i) asking the user to enter the number of years that 
+are to be included in each run, ii) preparing a database from the original 
+database with the same number of years as the user specified, and solving it. 
+The assumption is that regardless of the number of years, only the results of 
+the first period are used in the subsequent run. iii) progressing over the 
+model time periods by repeating step ii until the end of horizon is reached. 
+All the results are written in the original database specified in the config file.
+
 """
 
 import sqlite3
@@ -34,8 +38,9 @@ import sys
 from IPython import embed as IP
 
 def myopic_db_generator_solver ( self ):
-
+	global db_path_org
 	db_path_org = self.options.output
+	# original database specified in the ../config_sample file
 	con_org = sqlite3.connect(db_path_org)
 	cur_org = con_org.cursor()			
 	table_list = cur_org.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'Output%'").fetchall()
@@ -44,6 +49,7 @@ def myopic_db_generator_solver ( self ):
 	loc2 = max(loc for loc, val in enumerate(self.options.output) if val == '.')
 	db_name = self.options.output[loc1+1:loc2]
 	copyfile(db_path_org, self.options.path_to_db_io+"/"+db_name+"_blank"+self.options.output[loc2:])
+
 	# group 1 consists of non output tables in which "periods" is a column name 
 	tables_group1 = ['CostFixed','CostVariable','Demand','EmissionLimit','MaxActivity','MaxCapacity', \
 					 'MinActivity','MinCapacity','TechInputSplit','TechOutputSplit','CapacityCredit','MinGenGroupTarget']
@@ -51,14 +57,43 @@ def myopic_db_generator_solver ( self ):
 	tables_group2 = ['CapacityFactorProcess','CostInvest','DiscountRate', \
 					 'Efficiency','EmissionActivity','ExistingCapacity','LifetimeProcess']	
 	
-	N = 1
+	version = int(sys.version[0])
 
+	if version >= 3:
+		while True:
+		  try:
+		    N = int(input("Enter the number of years that are to be included in each individual myopic run: "))
+		    if 1 <= N <= len(time_periods)-2:
+		    	break
+		    else:
+		    	print ("The integer must be between 1 and "+str(time_periods[-2][0]))
+		  except ValueError:
+		      print("Please input integer only...")  
+		      continue	
+	else:
+		while True:
+		  try:
+		    N = raw_input("Enter the number of years that are to be included in each individual myopic run: ")
+		    if 1 <= int(N) <= len(time_periods)-2:
+		    	N = int(N)
+		    	break
+		    else:
+		    	print ("The integer must be between 1 and "+str(len(time_periods)-2))
+		  except ValueError:
+		      print("Please input integer only...")  
+		      continue		
 
 	for i in range(N-1,len(time_periods)-1):
-		print ('Preparing the database for the periods '+str(time_periods[i][0]))
-		new_db = self.options.path_to_db_io+"/"+db_name+"_myopic_"+str(time_periods[i][0])+self.options.output[loc2:]
-		copyfile(self.options.path_to_db_io+"/"+db_name+"_blank"+self.options.output[loc2:], new_db)
-		con = sqlite3.connect(new_db)
+
+		print ('Preparing the database for the period(s): '+str([str(time_periods[j][0]) for j in range(i-(N-1),i+1)]))
+
+		new_myopic_name = "_myopic"
+		for j in range(i-(N-1),i+1):
+			new_myopic_name += "_"+str(time_periods[j][0])
+
+		new_db_loc = self.options.path_to_db_io+"/"+db_name+new_myopic_name+self.options.output[loc2:]
+		copyfile(self.options.path_to_db_io+"/"+db_name+"_blank"+self.options.output[loc2:], new_db_loc)
+		con = sqlite3.connect(new_db_loc)
 		cur = con.cursor()
 		table_list.sort()
 
@@ -125,7 +160,7 @@ def myopic_db_generator_solver ( self ):
 		if i!=(N-1):
 			df_new_ExistingCapacity = pd.read_sql_query("SELECT regions, tech, vintage, capacity FROM Output_V_Capacity \
 														 WHERE scenario="+"'"+str(self.options.scenario)+"' AND \
-														 vintage <= "+str(time_periods[i-(N-1)][0])+";", con_org)
+														 vintage < "+str(time_periods[i-(N-1)][0])+";", con_org)
 			df_new_ExistingCapacity.columns = ['regions','tech','vintage','exist_cap']
 			df_new_ExistingCapacity.to_sql('ExistingCapacity',con, if_exists='append', index=False)
 	
@@ -133,12 +168,12 @@ def myopic_db_generator_solver ( self ):
 			#to prevent infeasibility (if it is not an 'existing' vintage in the 
 			#original database and if it doesn't already have a current vintage). One example: 
 			# dummy technologies that have only the first time period vintage (p0)					
-			for j in range(0,N):
+			for j in range(N-1,-1,-1): #backward loop
 				cur.execute("INSERT INTO Efficiency \
 							 SELECT DISTINCT regions,input_comm,tech,"+str(time_periods[i-j][0])+ \
 							 ",output_comm,efficiency,eff_notes FROM Efficiency WHERE tech NOT IN (SELECT tech \
-							 FROM Efficiency WHERE vintage<"+str(time_periods[0][0])+") AND tech NOT IN (SELECT \
-							 tech FROM Efficiency WHERE vintage="+str(time_periods[i-j][0])+");")
+							 FROM Efficiency WHERE vintage < "+str(time_periods[0][0])+") AND tech NOT IN (SELECT \
+							 tech FROM Efficiency WHERE vintage >= "+str(time_periods[i-j][0])+");")
 
 
 			# delete (t,v) from efficiecny table if it doesn't appear in the ExistingCapacity (v is an existing vintage).
@@ -172,13 +207,13 @@ def myopic_db_generator_solver ( self ):
 				names = list(map(lambda x: x[0], cursor.description))
 				if 'vintage' in names:				
 					if table[0]!='ExistingCapacity':
-						for j in range(0,N):
+						for j in range(N-1,-1,-1):
 							names = list(map(lambda x: x[0], cursor.description))
 							names = [str(time_periods[i-j][0]) if x=='vintage' else x for x in names]
 							cur.execute("INSERT INTO "+table[0]+" SELECT DISTINCT "+",".join(names)+\
 										 " FROM "+table[0]+" WHERE tech NOT IN (SELECT tech FROM "+table[0]+\
 										 " WHERE vintage<"+str(time_periods[0][0])+") AND tech NOT IN (SELECT tech FROM "+\
-										 table[0]+" WHERE vintage="+str(time_periods[i-j][0])+");"
+										 table[0]+" WHERE vintage >= "+str(time_periods[i-j][0])+");"
 										 )
 					# For these two table we only want current vintages. 
 					if table[0] == 'CostInvest' or table[0] == 'DiscountRate':
@@ -190,16 +225,9 @@ def myopic_db_generator_solver ( self ):
 								 NOT IN (SELECT vintage FROM Efficiency WHERE Efficiency.tech="+str(table[0])+".tech);")
 			#except:
 			#	raise Exception(table[0],j)
-			except Exception as e:
-			    exception_type, exception_object, exception_traceback = sys.exc_info()
-			    filename = exception_traceback.tb_frame.f_code.co_filename
-			    line_number = exception_traceback.tb_lineno
-			    if line_number!=167:
-					print("Exception type: ", exception_type)
-					print("File name: ", filename)
-					print("Line number: ", line_number)
-					print("Table: ", table[0])
-			
+			except:
+				pass
+
 		cur.execute("UPDATE commodities SET comm_name = TRIM(comm_name, CHAR(37,10))")
 		# delete unused commodities otherwise the model throws an error
 
@@ -212,7 +240,7 @@ def myopic_db_generator_solver ( self ):
 		# looks like the VACUUM command does not work well
 		# in python 3 if embeded in line 180. To avoid potential
 		# errors, the database is closed and re-opened.
-		con = sqlite3.connect(new_db, isolation_level=None)
+		con = sqlite3.connect(new_db_loc, isolation_level=None)
 		cur = con.cursor()
 		cur.execute("VACUUM")
 		con.commit()
@@ -221,19 +249,19 @@ def myopic_db_generator_solver ( self ):
     	# the database is ready. It is run via a temporary config file in 
     	# a perfect foresight fashion.
     	# ---------------------------------------------------------------
-		new_config = os.getcwd()+"/temoa_model/config_sample_myopic_"+str(time_periods[i][0])
+		new_config = os.getcwd()+"/temoa_model/config_sample"+new_myopic_name
 		ifile = open(os.getcwd()+"/temoa_model/config_sample")
 		ofile = open(new_config,'w')
 		for line in ifile:
-			new_line = line.replace("--input=data_files/"+db_name, "--input=data_files/"+db_name+"_myopic_"+str(time_periods[i][0]))
+			new_line = line.replace("--input=data_files/"+db_name, "--input=data_files/"+db_name+new_myopic_name)
 			# the temporary config file is created from the original config file. Since for individual periods we are 
 			# going to have a standard run, '--rollinghorizon' needs to be commented out. 
 			new_line = new_line.replace("--myopic","#--myopic")
 			ofile.write(new_line)
 		ifile.close()
 		ofile.close()
-		os.system("python temoa_model/ --config=temoa_model/config_sample_myopic_"+str(time_periods[i][0]))
+		os.system("python temoa_model/ --config=temoa_model/config_sample"+new_myopic_name)
 		# delete the temporary config file
-		os.system("rm -rf temoa_model/config_sample_myopic_"+str(time_periods[i][0]))
+		os.system("rm -rf temoa_model/config_sample"+new_myopic_name)
 	
 	os.system("rm -rf "+self.options.path_to_db_io+"/"+db_name+"_blank"+self.options.output[loc2:])	
