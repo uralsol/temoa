@@ -124,24 +124,25 @@ INSERT INTO `commodity_labels` VALUES ('d','demand commodity');
 CREATE TABLE "commodities" (
 	"comm_name"	text,
 	"flag"	text,
+	"sector" text,
 	"comm_desc"	text,
 	FOREIGN KEY("flag") REFERENCES "commodity_labels"("comm_labels"),
 	PRIMARY KEY("comm_name")
 );
-INSERT INTO `commodities` VALUES ('ethos','p','# dummy commodity to supply inputs (makes graph easier to read)');
-INSERT INTO `commodities` VALUES ('DSL','p','# diesel');
-INSERT INTO `commodities` VALUES ('ELC','p','# electricity');
-INSERT INTO `commodities` VALUES ('FEQ','p','# fossil equivalent');
-INSERT INTO `commodities` VALUES ('GSL','p','# gasoline');
-INSERT INTO `commodities` VALUES ('HCO','p','# coal');
-INSERT INTO `commodities` VALUES ('HYD','p','# water');
-INSERT INTO `commodities` VALUES ('OIL','p','# crude oil');
-INSERT INTO `commodities` VALUES ('URN','p','# uranium');
-INSERT INTO `commodities` VALUES ('co2','e','#CO2 emissions');
-INSERT INTO `commodities` VALUES ('nox','e','#NOX emissions');
-INSERT INTO `commodities` VALUES ('RH','d','# residential heating');
-INSERT INTO `commodities` VALUES ('RL','d','# residential lighting');
-INSERT INTO `commodities` VALUES ('TX','d','# transportation');
+INSERT INTO `commodities` VALUES ('ethos', 'p', 'ethos','# dummy commodity to supply inputs (makes graph easier to read)');
+INSERT INTO `commodities` VALUES ('DSL', 'p', 'OIL', '# diesel');
+INSERT INTO `commodities` VALUES ('ELC', 'p', 'ELC', '# electricity');
+INSERT INTO `commodities` VALUES ('FEQ', 'p', 'OIL', '# fossil equivalent');
+INSERT INTO `commodities` VALUES ('GSL', 'p', 'OIL', '# gasoline');
+INSERT INTO `commodities` VALUES ('HCO', 'p', 'COAL', '# coal');
+INSERT INTO `commodities` VALUES ('HYD', 'p', 'REN', '# water');
+INSERT INTO `commodities` VALUES ('OIL', 'p', 'OIL', '# crude oil');
+INSERT INTO `commodities` VALUES ('URN', 'p', 'NUC', '# uranium');
+INSERT INTO `commodities` VALUES ('co2', 'e', 'EMS', '#CO2 emissions');
+INSERT INTO `commodities` VALUES ('nox', 'e', 'EMS', '#NOX emissions');
+INSERT INTO `commodities` VALUES ('RH', 'd', 'RES', '# residential heating');
+INSERT INTO `commodities` VALUES ('RL', 'd', 'RES', '# residential lighting');
+INSERT INTO `commodities` VALUES ('TX', 'd', 'TRN', '# transportation');
 CREATE TABLE "TechOutputSplit" (
 	"regions"	TEXT,
 	"periods"	integer,

@@ -78,6 +78,7 @@ CREATE TABLE "commodity_labels" (
 CREATE TABLE "commodities" (
 	"comm_name"	text,
 	"flag"	text,
+	"sector" text,
 	"comm_desc"	text,
 	PRIMARY KEY("comm_name"),
 	FOREIGN KEY("flag") REFERENCES "commodity_labels"("comm_labels")

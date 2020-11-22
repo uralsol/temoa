@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS "technologies" (
 CREATE TABLE IF NOT EXISTS "commodities" (
 	"comm_name"	text,
 	"flag"	text,
+	"sector" text,
 	"comm_desc"	text,
 	PRIMARY KEY("comm_name"),
 	FOREIGN KEY("flag") REFERENCES "commodity_labels"("comm_labels")
@@ -562,19 +563,19 @@ INSERT INTO "technologies" VALUES ('T_GSL','p','transport','gasoline vehicle',''
 INSERT INTO "technologies" VALUES ('T_EV','p','transport','electric vehicle','');
 INSERT INTO "technologies" VALUES ('R_EH','p','residential',' electric residential heating','');
 INSERT INTO "technologies" VALUES ('R_NGH','p','residential',' natural gas residential heating','');
-INSERT INTO "commodities" VALUES ('ethos','p','dummy commodity to supply inputs (makes graph easier to read)');
-INSERT INTO "commodities" VALUES ('OIL','p','crude oil');
-INSERT INTO "commodities" VALUES ('NG','p','natural gas');
-INSERT INTO "commodities" VALUES ('URN','p','uranium');
-INSERT INTO "commodities" VALUES ('ETH','p','ethanol');
-INSERT INTO "commodities" VALUES ('SOL','p','solar insolation');
-INSERT INTO "commodities" VALUES ('GSL','p','gasoline');
-INSERT INTO "commodities" VALUES ('DSL','p','diesel');
-INSERT INTO "commodities" VALUES ('ELC','p','electricity');
-INSERT INTO "commodities" VALUES ('E10','p','gasoline blend with 10% ethanol');
-INSERT INTO "commodities" VALUES ('VMT','d','travel demand for vehicle-miles traveled');
-INSERT INTO "commodities" VALUES ('RH','d','demand for residential heating');
-INSERT INTO "commodities" VALUES ('CO2','e','CO2 emissions commodity');
+INSERT INTO "commodities" VALUES ('ethos','p', 'ethos', 'dummy commodity to supply inputs (makes graph easier to read)');
+INSERT INTO "commodities" VALUES ('OIL','p', 'OIL', 'crude oil');
+INSERT INTO "commodities" VALUES ('NG','p', 'NGA', 'natural gas');
+INSERT INTO "commodities" VALUES ('URN','p','NUC', 'uranium');
+INSERT INTO "commodities" VALUES ('ETH','p', 'BIO', 'ethanol');
+INSERT INTO "commodities" VALUES ('SOL','p', 'SOL', 'solar insolation');
+INSERT INTO "commodities" VALUES ('GSL','p', 'OIL','gasoline');
+INSERT INTO "commodities" VALUES ('DSL','p', 'OIL','diesel');
+INSERT INTO "commodities" VALUES ('ELC','p', 'ELC', 'electricity');
+INSERT INTO "commodities" VALUES ('E10','p', 'BIO', 'gasoline blend with 10% ethanol');
+INSERT INTO "commodities" VALUES ('VMT','d', 'TRN', 'travel demand for vehicle-miles traveled');
+INSERT INTO "commodities" VALUES ('RH','d', 'RES', 'demand for residential heating');
+INSERT INTO "commodities" VALUES ('CO2','e', 'EMS', 'CO2 emissions commodity');
 INSERT INTO "SegFrac" VALUES ('spring','day',0.125,'Spring - Day');
 INSERT INTO "SegFrac" VALUES ('spring','night',0.125,'Spring - Night');
 INSERT INTO "SegFrac" VALUES ('summer','day',0.125,'Summer - Day');
