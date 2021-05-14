@@ -281,6 +281,16 @@ def temoa_create_model(name="Temoa"):
         M.CapacityAvailableVar_rpt, domain=NonNegativeReals
     )
 
+    M.CapacityAvailableVar_rptv = Set(
+        dimen=4, initialize=CapacityAvailableVariableIndicesVintage
+    )
+    M.V_CapacityAvailableByPeriodTechVintage = Var(
+        M.CapacityAvailableVar_rptv, domain=NonNegativeReals
+    )
+    M.V_CapacityEndRetired = Var(
+        M.CapacityAvailableVar_rptv, domain=NonNegativeReals
+    )
+
     # ---------------------------------------------------------------
     # Declare the Objective Function.
     # ---------------------------------------------------------------
@@ -306,6 +316,9 @@ def temoa_create_model(name="Temoa"):
 
     M.CapacityAvailableByPeriodAndTechConstraint = Constraint(
         M.CapacityAvailableVar_rpt, rule=CapacityAvailableByPeriodAndTech_Constraint
+    )
+    M.EndogenousRetirementsConstraint = Constraint(
+        M.CapacityAvailableVar_rptv, rule=EndogenousRetirements_rule
     )
 
     M.ExistingCapacityConstraint_rtv = Set(

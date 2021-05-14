@@ -80,8 +80,7 @@ possibility.
         # capacity must be available to cover both activity and curtailment.
         return value(M.CapacityFactorProcess[r, s, d, t, v]) \
             * value(M.CapacityToActivity[r, t]) * value(M.SegFrac[s, d]) \
-            * value(M.ProcessLifeFrac[r, p, t, v]) \
-            * M.V_Capacity[r, t, v] == useful_activity + sum( \
+            * M.V_CapacityAvailableByPeriodTechVintage[r, p, t, v] == useful_activity + sum( \
             M.V_Curtailment[r, p, s, d, S_i, t, v, S_o] \
             for S_i in M.processInputs[r, p, t, v] \
             for S_o in M.ProcessOutputsByInput[r, p, t, v, S_i])
@@ -89,8 +88,7 @@ possibility.
         return value(M.CapacityFactorProcess[r, s, d, t, v]) \
         * value(M.CapacityToActivity[r, t]) \
         * value(M.SegFrac[s, d]) \
-        * value(M.ProcessLifeFrac[r, p, t, v]) \
-        * M.V_Capacity[r, t, v] >= useful_activity
+        * M.V_CapacityAvailableByPeriodTechVintage[r, p, t, v] >= useful_activity
 
 
 def CapacityAnnual_Constraint(M, r, p, t, v):
@@ -129,8 +127,7 @@ capacity.
 
     return CF \
     * value(M.CapacityToActivity[r, t]) \
-    * value(M.ProcessLifeFrac[r, p, t, v]) \
-    * M.V_Capacity[r, t, v] >= activity_rptv
+    * M.V_CapacityAvailableByPeriodTechVintage[r, p, t, v] >= activity_rptv
 
 
 def ActivityByTech_Constraint(M, t):
@@ -202,7 +199,7 @@ throughout the period.
    \forall p \in \text{P}^o, t \in T, r \in R
 """
     cap_avail = sum(
-        value(M.ProcessLifeFrac[r, p, t, S_v]) * M.V_Capacity[r, t, S_v]
+        M.V_CapacityAvailableByPeriodTechVintage[r, p, t, S_v]
         for S_v in M.processVintages[r, p, t]
     )
 
@@ -348,7 +345,7 @@ def PeriodCost_rule(M, p):
     )
 
     fixed_costs = sum(
-        M.V_Capacity[r, S_t, S_v]
+        M.V_CapacityAvailableByPeriodTechVintage[r, p, S_t, S_v]
         * (
             value(M.CostFixed[r, p, S_t, S_v])
             * (
@@ -985,11 +982,10 @@ scale the storage duration to account for the number of days in each season.
 """
 
     energy_capacity = (
-        M.V_Capacity[r, t, v]
+        M.V_CapacityAvailableByPeriodTechVintage[r, p, t, v]
         * M.CapacityToActivity[r, t]
         * (M.StorageDuration[r, t] / 8760)
         * sum(M.SegFrac[s,S_d] for S_d in M.time_of_day) * 365
-        * value(M.ProcessLifeFrac[r, p, t, v])
     )
     expr = M.V_StorageLevel[r, p, s, d, t, v] <= energy_capacity
 
@@ -1022,10 +1018,9 @@ limited by the power capacity (typically GW) of the storage unit.
 
     # Maximum energy charge in each time slice
     max_charge = (
-        M.V_Capacity[r, t, v]
+        M.V_CapacityAvailableByPeriodTechVintage[r, p, t, v]
         * M.CapacityToActivity[r, t]
         * M.SegFrac[s, d]
-        * value(M.ProcessLifeFrac[r, p, t, v])
     )
 
     # Energy charge cannot exceed the power capacity of the storage unit
@@ -1059,10 +1054,9 @@ is limited by the power capacity (typically GW) of the storage unit.
 
     # Maximum energy discharge in each time slice
     max_discharge = (
-        M.V_Capacity[r, t, v]
+        M.V_CapacityAvailableByPeriodTechVintage[r, p, t, v]
         * M.CapacityToActivity[r, t]
         * M.SegFrac[s, d]
-        * value(M.ProcessLifeFrac[r, p, t, v])
     )
 
     # Energy discharge cannot exceed the capacity of the storage unit
@@ -1104,10 +1098,9 @@ the capacity (typically GW) of the storage unit.
 
     throughput = charge + discharge
     max_throughput = (
-        M.V_Capacity[r, t, v]
+        M.V_CapacityAvailableByPeriodTechVintage[r, p, t, v]
         * M.CapacityToActivity[r, t]
         * M.SegFrac[s, d]
-        * value(M.ProcessLifeFrac[r, p, t, v])
     )
     expr = throughput <= max_throughput
     return expr
@@ -1141,11 +1134,10 @@ capacity could lead to more expensive solutions.
 
     s = M.time_season.first()
     energy_capacity = (
-        M.V_Capacity[r, t, v]
+        M.V_CapacityAvailableByPeriodTechVintage[r, p, t, v]
         * M.CapacityToActivity[r, t]
         * (M.StorageDuration[r, t] / 8760)
         * sum(M.SegFrac[s,S_d] for S_d in M.time_of_day) * 365
-        * value(M.ProcessLifeFrac[r, v, t, v])
     )
 
     expr = M.V_StorageInit[r, t, v] ==  energy_capacity * M.StorageInitFrac[r, t, v]
@@ -1473,8 +1465,7 @@ we write this equation for all the time-slices defined in the database in each r
 
     cap_avail = sum(
         value(M.CapacityCredit[r, p, t, v])
-        * M.ProcessLifeFrac[r, p, t, v]
-        * M.V_Capacity[r, t, v]
+        * M.V_CapacityAvailableByPeriodTechVintage[r, p, t, v]
         * value(M.CapacityToActivity[r, t])
         * value(M.SegFrac[s, d])
         for t in M.tech_reserve
@@ -2093,3 +2084,9 @@ def ParamLoanAnnualize_rule(M, r, t, v):
     annualized_rate = dr / (1.0 - (1.0 + dr) ** (-lln))
 
     return annualized_rate
+
+def EndogenousRetirements_rule(M, r, p, t, v): 
+    if (p != M.time_future.first()) and ((r, M.time_future.prev(p), t, v) in M.V_CapacityAvailableByPeriodTechVintage.keys()):
+        return M.V_CapacityAvailableByPeriodTechVintage[r, p, t, v] == M.V_CapacityAvailableByPeriodTechVintage[r, M.time_future.prev(p), t, v] - M.V_CapacityEndRetired[r, p, t, v]
+    else:
+        return M.V_CapacityAvailableByPeriodTechVintage[r, p, t, v] == (M.ProcessLifeFrac[r, p, t, v] * M.V_Capacity[r, t, v]) - M.V_CapacityEndRetired[r, p, t, v]

@@ -329,6 +329,36 @@ CREATE TABLE "Output_CapacityByPeriodAndTech" (
 	FOREIGN KEY("sector") REFERENCES "sector_labels"("sector"),
 	PRIMARY KEY("regions","scenario","t_periods","tech")
 );
+CREATE TABLE "Output_CapacityEndRetired" (
+	"regions"	text,
+	"scenario"	text,
+	"sector"	text,
+	"t_periods"	integer,
+	"tech"	text,
+	"vintage"	integer,
+	"capacity_endoretired"	real,
+	FOREIGN KEY("tech") REFERENCES "technologies"("tech"),
+	FOREIGN KEY("t_periods") REFERENCES "time_periods"("t_periods"),
+	FOREIGN KEY("sector") REFERENCES "sector_labels"("sector"),
+	FOREIGN KEY("vintage") REFERENCES "time_periods"("t_periods"),
+	PRIMARY KEY("regions","scenario","t_periods","tech", "vintage")
+);
+
+CREATE TABLE "Output_CapacityByPeriodTechVintage" (
+	"regions"	text,
+	"scenario"	text,
+	"sector"	text,
+	"t_periods"	integer,
+	"tech"	text,
+	"vintage"	integer,
+	"capacity_endoretired"	real,
+	FOREIGN KEY("tech") REFERENCES "technologies"("tech"),
+	FOREIGN KEY("t_periods") REFERENCES "time_periods"("t_periods"),
+	FOREIGN KEY("sector") REFERENCES "sector_labels"("sector"),
+	FOREIGN KEY("vintage") REFERENCES "time_periods"("t_periods"),
+	PRIMARY KEY("regions","scenario","t_periods","tech", "vintage")
+);
+
 CREATE TABLE "MyopicBaseyear" (
 	"year"	real
 	"notes"	text	
@@ -888,6 +918,10 @@ INSERT INTO `CostFixed` VALUES ('utopia',2000,'TXG',1990,48.0,'','');
 INSERT INTO `CostFixed` VALUES ('utopia',2000,'TXG',2000,48.0,'','');
 INSERT INTO `CostFixed` VALUES ('utopia',2010,'TXG',2000,48.0,'','');
 INSERT INTO `CostFixed` VALUES ('utopia',2010,'TXG',2010,48.0,'','');
+INSERT INTO `CostFixed` VALUES ('utopia',1990,'SRE',1990,1,'','');
+INSERT INTO `CostFixed` VALUES ('utopia',2000,'SRE',1990,1,'','');
+INSERT INTO `CostFixed` VALUES ('utopia',2010,'SRE',1990,1,'','');
+
 CREATE TABLE "CapacityToActivity" (
 	"regions"	text,
 	"tech"	text,

@@ -231,6 +231,17 @@ def pformat_results ( pyomo_instance, pyomo_result, options ):
 		if abs(val) < epsilon: continue
 		svars['V_CapacityAvailableByPeriodAndTech'][r, p, t] = val
 
+	for r, p, t, v in m.V_CapacityEndRetired:
+		val = value( m.V_CapacityEndRetired[r, p, t, v] )
+		if abs(val) < epsilon: continue
+		svars['V_CapacityEndRetired'][r, p, t, v] = val
+
+	for r, p, t, v in m.V_CapacityAvailableByPeriodTechVintage:
+		val = value( m.V_CapacityAvailableByPeriodTechVintage[r, p, t, v] )
+		if abs(val) < epsilon: continue
+		svars['V_CapacityAvailableByPeriodTechVintage'][r, p, t, v] = val
+
+
 	# Calculate model costs:	
 	if hasattr(options, 'file_location') and os.path.join('temoa_model', 'config_sample_myopic') not in options.file_location: 
 		# This is a generic workaround.  Not sure how else to automatically discover 
@@ -409,6 +420,8 @@ def pformat_results ( pyomo_instance, pyomo_result, options ):
 			   "V_Curtailment"  : "Output_Curtailment", \
 			   "V_Capacity" : "Output_V_Capacity",       \
 			   "V_CapacityAvailableByPeriodAndTech"   : "Output_CapacityByPeriodAndTech",  \
+   			   "V_CapacityEndRetired"   : "Output_CapacityEndRetired",  \
+  			   "V_CapacityAvailableByPeriodTechVintage"   : "Output_CapacityByPeriodTechVintage",  \
 			   "V_EmissionActivityByPeriodAndProcess" : "Output_Emissions", \
 			   "Objective"  : "Output_Objective", \
 			   "Costs"      : "Output_Costs" 

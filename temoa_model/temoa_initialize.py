@@ -787,7 +787,8 @@ def CreateSparseDicts ( M ):
 	  (r, p, t, v)
 
 	  for r,p,t in M.processVintages.keys()
-	  for v in M.processVintages[ r, p, t ]
+	  for v in M.processVintages[ r, p, t ] if v<=p
+
 	)
 # ---------------------------------------------------------------
 # Create sparse parameter indices.
