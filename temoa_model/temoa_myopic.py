@@ -304,11 +304,13 @@ def myopic_db_generator_solver ( self ):
         # the database is ready. It is run via a temporary config file in 
         # a perfect foresight fashion.
         # ---------------------------------------------------------------
-        new_config = self.options.file_location+new_myopic_name
+        relative_path_file_location = os.path.join("temoa_model", self.options.file_location.split('temoa_model')[1][1:])
+        print(relative_path_file_location)
+        new_config = relative_path_file_location+new_myopic_name
         if version<3:
-            ifile = io.open(self.options.file_location, encoding='utf-8')
+            ifile = io.open(relative_path_file_location, encoding='utf-8')
         else:
-            ifile = open(self.options.file_location, encoding='utf-8')
+            ifile = open(relative_path_file_location, encoding='utf-8')
 
         ofile = open(new_config,'w')
         for line in ifile:
@@ -323,7 +325,7 @@ def myopic_db_generator_solver ( self ):
 
         ifile.close()
         ofile.close()
-        os.system("python temoa_model/ --config=" + self.options.file_location +new_myopic_name)
+        os.system("python temoa_model/ --config=" + relative_path_file_location +new_myopic_name)
         # delete the temporary config file
         os.remove(new_config)
         if not self.options.KeepMyopicDBs:
