@@ -312,7 +312,6 @@ def myopic_db_generator_solver ( self ):
         # a perfect foresight fashion.
         # ---------------------------------------------------------------
         relative_path_file_location = os.path.join("temoa_model", self.options.file_location.split('temoa_model')[1][1:])
-        print(relative_path_file_location)
         new_config = relative_path_file_location+new_myopic_name
         if version<3:
             ifile = io.open(relative_path_file_location, encoding='utf-8')
