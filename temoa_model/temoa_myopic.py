@@ -83,6 +83,96 @@ def myopic_db_generator_solver ( self ):
         cur = con.cursor()
         table_list.sort()
 
+        if i!=time_periods[0][0]:
+        	query = "SELECT * FROM Output_VFlow_Out WHERE output_comm LIKE 'ELCP%' AND t_periods = " + str(time_periods[j-1][0]) + \
+        	" AND scenario="+"'"+str(self.options.scenario) + "'"
+        	df_elecsector_results = pd.read_sql_query(query, con_org)
+        	#df_segfrac = pd.read_sql_query ("SELECT * FROM SegFrac", con_org)
+        	if len(df_elecsector_results)>0:
+	        	#df_elecsector_results = df_elecsector_results.merge(df_segfrac, left_on = ['t_season', 't_day'], right_on = ['season_name', 'time_of_day_name'])
+
+		       	query = "SELECT * FROM Efficiency WHERE output_comm LIKE 'ELCP%' AND \
+		       	(regions, tech, vintage) IN (SELECT DISTINCT regions, tech, vintage FROM Output_VFlow_Out WHERE t_periods = " + str(time_periods[j-1][0]) + \
+	        	" AND scenario="+"'"+str(self.options.scenario) + "')"
+	        	df_efficiency = pd.read_sql_query(query, con_org)
+	        	
+
+	        	mask = df_efficiency['input_comm'].str.contains('E_NGA')
+	        	df_efficiency.loc[mask,'fuel'] = 'IMPELCNGA_S3'
+
+	        	mask = df_efficiency['input_comm'].str.contains('COALSTM')
+	        	df_efficiency.loc[mask,'fuel'] = 'IMPELCCOAB'
+
+	        	mask = df_efficiency['input_comm'].str.contains('URN')
+	        	df_efficiency.loc[mask,'fuel'] = 'IMPELCURN'
+
+	        	query = "SELECT * FROM CostVariable WHERE (tech='IMPELCNGA_S3' OR tech='IMPELCURN' OR tech='IMPELCCOAB') AND periods = " + str(time_periods[j-1][0])
+	        	df_vom_fuel = pd.read_sql_query(query, con_org)
+
+	        	df_efficiency = df_efficiency.merge(df_vom_fuel, left_on='fuel', right_on='tech', how='left')
+
+	        	df_efficiency['fuel_cost'] = df_efficiency['cost_variable']/df_efficiency['efficiency']
+	        	query = "SELECT * FROM CostVariable WHERE periods = " + str(time_periods[j-1][0]) +  " AND(regions, tech, vintage) IN (SELECT DISTINCT regions, tech, vintage FROM Output_VFlow_Out WHERE output_comm LIKE 'ELCP%' AND t_periods = " + str(time_periods[j-1][0]) + " AND scenario="+"'"+str(self.options.scenario) + "')"
+	        	df_vom = pd.read_sql_query(query, con_org)
+
+	        	df_efficiency = df_efficiency.merge(df_vom, left_on=['regions_x','tech_x','vintage_x'], right_on=['regions','tech', 'vintage'], how='left')
+
+	        	df_efficiency['op_cost'] = df_efficiency['fuel_cost'] + df_efficiency['cost_variable_y']
+
+	        	df_elecsector_results = df_elecsector_results.merge(df_efficiency[['regions', 'tech','vintage','op_cost']], on=['regions','tech','vintage'])
+
+	        	df_elecsector_max = df_elecsector_results.groupby(by=['regions','t_season', 't_day'])['op_cost'].max().reset_index()
+
+	        	for tech_sel, fuel_sel in [['E_COALSTM_R%', 'IMPELCCOAB'], ['E_URNLWR_R%','IMPELCURN' ]]:
+		        	query = "SELECT Efficiency.regions, Efficiency.tech, Efficiency.vintage, Efficiency.efficiency, CostFixed.cost_fixed, \
+		        	ExistingCapacity.exist_cap, CostVariable.cost_variable FROM Efficiency \
+		        	LEFT JOIN CostFixed ON Efficiency.regions=CostFixed.regions \
+		        	AND Efficiency.tech=CostFixed.tech AND Efficiency.vintage=CostFixed.vintage \
+		        	LEFT JOIN CostVariable ON Efficiency.regions=CostVariable.regions \
+		        	AND Efficiency.tech=CostVariable.tech AND Efficiency.vintage=CostVariable.vintage \
+		        	LEFT JOIN ExistingCapacity ON Efficiency.regions=ExistingCapacity.regions \
+		        	AND Efficiency.tech=ExistingCapacity.tech AND Efficiency.vintage=ExistingCapacity.vintage \
+		        	WHERE Efficiency.tech LIKE '" + tech_sel + "' \
+		        	AND CostFixed.periods =" + str(time_periods[j-1][0]) + " AND CostVariable.periods =" + str(time_periods[j-1][0]) 
+	                ## E_COALSTM_R E_URNLWR_R
+		        	df_tech_retire = pd.read_sql_query(query, con_org)
+
+		        	df_tech_retire = df_tech_retire.merge(df_vom_fuel[df_vom_fuel['tech']==fuel_sel], on='regions') #IMPELCCOAB, IMPELCURN
+
+		        	df_tech_retire['fom'] = df_tech_retire['cost_fixed']*df_tech_retire['exist_cap']
+		        	df_tech_retire['vom'] = df_tech_retire['cost_variable_x'] + df_tech_retire['cost_variable_y']/df_tech_retire['efficiency']
+
+		        	df_elecsector_annual = df_elecsector_results.groupby(by=['regions', 'tech', 'vintage'])['vflow_out'].sum().reset_index()
+		        	df_tech_retire.rename(columns={'tech_x':'tech', 'vintage_x':'vintage'}, inplace=True)
+		        	df_tech_retire = df_tech_retire.merge(df_elecsector_annual, left_on = ['regions', 'tech', 'vintage'], right_on = ['regions', 'tech', 'vintage'], how='left')
+		        	df_tech_retire['vflow_out'].fillna(0, inplace=True)
+		        	df_tech_retire['suppply_cost'] = df_tech_retire['fom'] + df_tech_retire['vom']*df_tech_retire['vflow_out']
+
+		        	df_elecsector_results = df_elecsector_results.merge(df_elecsector_max, on = ['regions','t_season', 't_day'])
+		        	df_elecsector_results['revenue'] = df_elecsector_results['vflow_out']*df_elecsector_results['op_cost_y']
+
+		        	df_elecsector_revenue  = df_elecsector_results.groupby(by=['regions', 'tech', 'vintage'])['revenue'].sum().reset_index()
+
+		        	df_tech_retire = df_tech_retire.merge(df_elecsector_revenue[['regions', 'tech', 'vintage', 'revenue']], left_on = ['regions', 'tech', 'vintage'], right_on = ['regions', 'tech', 'vintage'], how='left')
+		        	df_tech_retire['revenue'].fillna(0, inplace=True)
+
+		        	df_tech_retire['profit'] = df_tech_retire['revenue'] - df_tech_retire['suppply_cost']
+		        	df_tech_retire['profit_perGW'] = df_tech_retire['profit']/df_tech_retire['exist_cap']
+
+		        	# df_elecsector_results.to_csv('df_elecsector_results.csv')
+		        	# df_efficiency.to_csv('df_efficiency.csv')
+		        	# df_vom.to_csv('df_vom.csv')
+		        	# df_vom_fuel.to_csv('df_vom_fuel.csv')
+		        	# df_elecsector_max.to_csv('df_elecsector_max.csv')
+		        	# df_tech_retire.to_csv('df_tech_retire_' + str(time_periods[j-1][0]) +  '.csv')
+
+		        	df_rows = df_tech_retire[df_tech_retire['profit_perGW']<=0]
+		        	df_rows = df_rows[['regions','tech','vintage']].drop_duplicates()
+		        	# df_rows.to_csv('df_rows_' + tech_sel + '_' + str(time_periods[j-1][0]) +  '.csv')
+		        	df_rows['concat'] = "'" + df_rows['regions'].map(str) + df_rows['tech'] + df_rows['vintage'].map(str) + "'"
+		        	query = 'DELETE FROM Efficiency WHERE regions||tech||vintage IN  (' +','.join(df_rows['concat']) + ')'
+		        	cur.execute(query)
+
         # ---------------------------------------------------------------
         # Start modifying the Efficiency table
         # ---------------------------------------------------------------
