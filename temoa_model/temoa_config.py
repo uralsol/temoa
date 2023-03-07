@@ -132,7 +132,7 @@ def db_2_dat(ifile, ofile, options):
 		['param','MinGenGroupWeight',         '',                    '',             3],
 		['param','LinkedTechs',               '',                    '',             3],
 		['param','SegFrac',                   '',                    '',             2],
-		['param','DemandSpecificDistribution','',                    '',             4],
+		['param','DemandSpecificDistribution','',                    '',             5],
 		['param','CapacityToActivity',        '',                    '',             2],
 		['param','PlanningReserveMargin',     '',                    '',             2],
 		['param','GlobalDiscountRate',        '',                    '',             0],

@@ -259,8 +259,8 @@ the global discount rate and loan period. Third, the new lump sum is amortized
 at the global discount rate and technology lifetime. Fourth, loan payments beyond
 the model time horizon are removed and the lump sum recalculated. The terms used
 in Steps 3-4 are :math:`\frac{ GDR }{ 1-(1+GDR)^{-LTP_{r,t,v} } }\cdot
-\frac{ 1-(1+GDR)^{-LPA_{t,v}} }{ GDR }`. The product simplifies to 
-:math:`\frac{ 1-(1+GDR)^{-LPA_{r,t,v}} }{ 1-(1+GDR)^{-LTP_{r,t,v}} }`, where 
+\frac{ 1-(1+GDR)^{-LPA_{t,v}} }{ GDR }`. The product simplifies to
+:math:`\frac{ 1-(1+GDR)^{-LPA_{r,t,v}} }{ 1-(1+GDR)^{-LTP_{r,t,v}} }`, where
 :math:`LPA_{r,t,v}` represents the active lifetime of process t in region r :math:`(r,t,v)`
 before the end of the model horizon, and :math:`LTP_{r,t,v}` represents the full
 lifetime of a regional process :math:`(r,t,v)`. Fifth, the lump sum is discounted back to the
@@ -425,7 +425,7 @@ words, an end-use demand must only be an end-use demand.  Note that if an output
 could satisfy both an end-use and internal system demand, then the output from
 :math:`\textbf{FO}` and :math:`\textbf{FOA}` would be double counted.
 """
-    if (r,s,d,dem) not in M.DemandSpecificDistribution.sparse_keys():
+    if (r, p, s, d, dem) not in M.DemandSpecificDistribution.sparse_keys():
         return Constraint.Skip
 
     supply = sum(
@@ -442,7 +442,7 @@ could satisfy both an end-use and internal system demand, then the output from
 
     DemandConstraintErrorCheck(supply + supply_annual, r, p, s, d, dem)
 
-    expr = supply + supply_annual == M.Demand[r, p, dem] * M.DemandSpecificDistribution[r, s, d, dem]
+    expr = supply + supply_annual == M.Demand[r, p, dem] * M.DemandSpecificDistribution[r, p, s, d, dem]
     return expr
 
 def DemandActivity_Constraint(M, r, p, s, d, t, v, dem, s_0, d_0):
@@ -474,7 +474,7 @@ Note that this constraint is only applied to the demand commodities with diurnal
 variations, and therefore the equation above only includes :math:`\textbf{FO}`
 and not  :math:`\textbf{FOA}`
 """
-    if (r,s,d,dem) not in M.DemandSpecificDistribution.sparse_keys():
+    if (r, p, s, d, dem) not in M.DemandSpecificDistribution.sparse_keys():
         return Constraint.Skip
     DSD = M.DemandSpecificDistribution  # lazy programmer
 
@@ -487,7 +487,7 @@ and not  :math:`\textbf{FOA}`
         for S_i in M.ProcessInputsByOutput[r, p, t, v, dem]
     )
 
-    expr = act_a * DSD[r, s, d, dem] == act_b * DSD[r, s_0, d_0, dem]
+    expr = act_a * DSD[r, p, s, d, dem] == act_b * DSD[r, p, s_0, d_0, dem]
     return expr
 
 
@@ -539,9 +539,9 @@ covers both.
 
 This constraint also accounts for imports and exports between regions
 when solving multi-regional systems. The import (:math:`\textbf{FIM}`) and export
-(:math:`\textbf{FEX}`) variables are created on-the-fly by summing the 
+(:math:`\textbf{FEX}`) variables are created on-the-fly by summing the
 :math:`\textbf{FO}` variables over the appropriate import and export regions,
-respectively, which are defined in :code:`temoa_initialize.py` by parsing the 
+respectively, which are defined in :code:`temoa_initialize.py` by parsing the
 :code:`tech_exchange` processes.
 
 Finally, for commodities that are exclusively produced at a constant annual rate, the
@@ -1533,7 +1533,7 @@ output in separate terms.
 
      # r can be an individual region (r='US'), or a combination of regions separated by a + (r='Mexico+US+Canada'), or 'global'.
      # Note that regions!=M.regions. We iterate over regions to find actual_emissions and actual_emissions_annual.
-    
+
 
     # if r == 'global', the constraint is system-wide
 
@@ -1968,8 +1968,8 @@ Allows users to specify fixed or minimum shares of commodity inputs to a process
 producing a single output. Under this constraint, only the technologies with variable
 output at the timeslice level (i.e., NOT in the :code:`tech_annual` set) are considered.
 This constraint differs from TechInputSplit as it specifies shares on an annual basis,
-so even though it applies to technologies with variable output at the timeslice level, 
-the constraint only fixes the input shares over the course of a year. 
+so even though it applies to technologies with variable output at the timeslice level,
+the constraint only fixes the input shares over the course of a year.
 """
 
     inp = sum(
@@ -1989,7 +1989,7 @@ the constraint only fixes the input shares over the course of a year.
 
 
     expr = inp >= M.TechInputSplitAverage[r, p, i, t] * total_inp
-    return expr 
+    return expr
 
 def TechOutputSplit_Constraint(M, r, p, s, d, t, v, o):
     r"""
@@ -2151,7 +2151,7 @@ The relationship between the primary and linked technologies is given
 in the :code:`LinkedTechs` table. Note that the primary and linked
 technologies cannot be part of the :code:`tech_annual` set. It is implicit that
 the primary region corresponds to the linked technology as well. The lifetimes
-of the primary and linked technologies should be specified and identical. 
+of the primary and linked technologies should be specified and identical.
 """
     linked_t = M.LinkedTechs[r, t, e]
     if (r,t,v) in M.LifetimeProcess.keys() and M.LifetimeProcess[r, linked_t,v] != M.LifetimeProcess[r, t,v]:
@@ -2177,4 +2177,3 @@ of the primary and linked technologies should be specified and identical.
 
     expr = -primary_flow == linked_flow
     return expr
-

@@ -1,5 +1,5 @@
 """
-Tools for Energy Model Optimization and Analysis (Temoa): 
+Tools for Energy Model Optimization and Analysis (Temoa):
 An open source framework for energy systems optimization modeling
 
 Copyright (C) 2015,  NC State University
@@ -14,8 +14,8 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
-A complete copy of the GNU General Public License v2 (GPLv2) is available 
-in LICENSE.txt.  Users uncompressing this from an archive may not have 
+A complete copy of the GNU General Public License v2 (GPLv2) is available
+in LICENSE.txt.  Users uncompressing this from an archive may not have
 received this license file.  If not, see <http://www.gnu.org/licenses/>.
 """
 
@@ -138,7 +138,7 @@ def CommodityBalanceConstraintErrorCheckAnnual ( vflow_out, vflow_in, r, p, c ):
 		  ' - Does a process need a longer LifetimeProcess parameter setting?')
 		raise Exception( msg.format(
 		  r, c, p, flow_in_expr.getvalue()
-		))		
+		))
 
 def DemandConstraintErrorCheck ( supply, r, p, s, d, dem ):
 	if int is type( supply ):
@@ -196,7 +196,7 @@ def validate_SegFrac ( M ):
 
 	if abs(float(total) - 1.0) > 0.001:
 		# We can't explicitly test for "!= 1.0" because of incremental rounding
-		# errors associated with the specification of SegFrac by time slice, 
+		# errors associated with the specification of SegFrac by time slice,
 		# but we check to make sure it is within the specified tolerance.
 
 		key_padding = max(map( get_str_padding, M.SegFrac.sparse_iterkeys() ))
@@ -346,12 +346,17 @@ def CreateDemands ( M ):
 	# Step 0: some setup for a couple of reusable items
 
 	# iget(3): 3 = magic number to specify the fourth column.  Currently the
-	# demand in the tuple (r, s, d, dem)
-	DSD_dem_getter = iget(3)
+	# demand in the tuple (r, p, s, d, dem)
+	DSD_dem_getter = iget(4)
 
 	# iget(0): 0 = magic number to specify the first column.  Currently the
-	# demand in the tuple (r, s, d, dem)
+	# region in the tuple (r, p, s, d, dem)
 	DSD_region_getter = iget(0)
+
+    # iget(1): 0 = magic number to specify the second column.  Currently the
+	# period in the tuple (r, p, s, d, dem)
+    DSD_period_getter = iget(1)
+
 
 	# Step 1
 	used_dems = set(dem for r, p, dem in M.Demand.sparse_iterkeys())
@@ -380,7 +385,7 @@ def CreateDemands ( M ):
 	total = sum( i for i in DDD.itervalues() )
 	if abs(value(total) - 1.0) > 0.001:
 		# We can't explicitly test for "!= 1.0" because of incremental rounding
-		# errors associated with the specification of demand shares by time slice, 
+		# errors associated with the specification of demand shares by time slice,
 		# but we check to make sure it is within the specified tolerance.
 
 		key_padding = max(map( get_str_padding, DDD.sparse_iterkeys() ))
@@ -406,7 +411,7 @@ def CreateDemands ( M ):
 	   (i for i in DSD.sparse_iterkeys()) ))
 	unset_demand_distributions = used_dems.difference( demands_specified )
 	unset_distributions = set(
-	   cross_product(M.regions, M.time_season, M.time_of_day, unset_demand_distributions))
+	   cross_product(M.regions, M.time_optimize, M.time_season, M.time_of_day, unset_demand_distributions))
 
 	if unset_distributions:
 		# Some hackery because Pyomo thinks that this Param is constructed.
@@ -414,18 +419,18 @@ def CreateDemands ( M ):
 		# targeting values that have not yet been constructed, that we know are
 		# valid, and that we will need.
 		# DSD._constructed = False
-		for r, s, d, dem in unset_distributions:
-			DSD[r, s, d, dem] = DDD[s, d]
+		for r, p, s, d, dem in unset_distributions:
+			DSD[r, p, s, d, dem] = DDD[s, d]
 		# DSD._constructed = True
 
 	# Step 5
-	used_reg_dems = set((r, dem) for r, p, dem in M.Demand.sparse_iterkeys())
-	for (r, dem) in used_reg_dems:
-		keys = (k for k in DSD.sparse_iterkeys() if DSD_dem_getter(k) == dem and  DSD_region_getter(k) == r)
+	used_reg_dems = set((r, p, dem) for r, p, dem in M.Demand.sparse_iterkeys())
+	for (r, p, dem) in used_reg_dems:
+		keys = (k for k in DSD.sparse_iterkeys() if DSD_dem_getter(k) == dem and  DSD_region_getter(k) == r and DSD_period_getter(k) == p)
 		total = sum( DSD[ i ] for i in keys )
 		if abs(value(total) - 1.0) > 0.001:
 		# We can't explicitly test for "!= 1.0" because of incremental rounding
-		# errors associated with the specification of demand shares by time slice, 
+		# errors associated with the specification of demand shares by time slice,
 		# but we check to make sure it is within the specified tolerance.
 
 			keys = [k for k in DSD.sparse_iterkeys() if DSD_dem_getter(k) == dem and  DSD_region_getter(k) == r]
@@ -636,8 +641,8 @@ def CreateSparseDicts ( M ):
 			if t in M.tech_reserve and (r, p) not in M.processReservePeriods:
 					M.processReservePeriods[r, p] = set()
 			if t in M.tech_exchange and (r[:r.find("-")], p, i) not in M.exportRegions:
-					M.exportRegions[r[:r.find("-")], p, i] = set()	#since t is in M.tech_exchange, r here has *-* format (e.g. 'US-Mexico'). 
-																	#r[:r.find("-")] extracts the region index before the "-". 
+					M.exportRegions[r[:r.find("-")], p, i] = set()	#since t is in M.tech_exchange, r here has *-* format (e.g. 'US-Mexico').
+																	#r[:r.find("-")] extracts the region index before the "-".
 			if t in M.tech_exchange and (r[r.find("-")+1:], p, o) not in M.importRegions:
 					M.importRegions[r[r.find("-")+1:], p, o] = set()
 
@@ -792,7 +797,7 @@ def CreateSparseDicts ( M ):
 	)
 # ---------------------------------------------------------------
 # Create sparse parameter indices.
-# These functions are called from temoa_model.py and use the sparse keys 
+# These functions are called from temoa_model.py and use the sparse keys
 # associated with specific parameters.
 # ---------------------------------------------------------------
 
@@ -863,7 +868,7 @@ def EnergyConsumptionByPeriodInputAndTechVariableIndices ( M ):
 	)
 
 	return indices
-	
+
 def ActivityByPeriodTechAndOutputVariableIndices ( M ):
 	indices = set(
 	  (p, t, o)
@@ -872,7 +877,7 @@ def ActivityByPeriodTechAndOutputVariableIndices ( M ):
 	  for p in M.time_optimize
 	)
 
-	return indices	
+	return indices
 
 def EmissionActivityByPeriodAndTechVariableIndices ( M ):
 	indices = set(
@@ -882,8 +887,8 @@ def EmissionActivityByPeriodAndTechVariableIndices ( M ):
 	  for p in M.time_optimize
 	)
 
-	return indices	
-	
+	return indices
+
 
 def ModelProcessLifeIndices ( M ):
 	"""\
@@ -974,7 +979,7 @@ def LinkedTechConstraintIndices ( M ):
 	linkedtech_indices = set(
 	  (r, p, s, d, t, v, e)
 
-	  for r, t, e in M.LinkedTechs.sparse_iterkeys() 
+	  for r, t, e in M.LinkedTechs.sparse_iterkeys()
 	  for p in M.time_optimize if (r, p, t) in M.processVintages.keys()
 	  for v in M.processVintages[ r, p, t ] if (r, p, t, v) in M.activeActivity_rptv
 	  for s in M.time_season
@@ -1018,14 +1023,14 @@ ensure demand activity remains consistent across time slices.
 						yield (r,p,s,d,t,v,dem,first_s,first_d)
 
 def DemandConstraintIndices ( M ):
-	used_dems = set((r,dem) for r, p, dem in M.Demand.sparse_iterkeys())
+	used_dems = set((r, p, dem) for r, p, dem in M.Demand.sparse_iterkeys())
 	DSD_keys = M.DemandSpecificDistribution.sparse_keys()
 	dem_slices = { (r,dem) : set(
 	    (s, d)
 	    for s in M.time_season
 	    for d in M.time_of_day
-	    if (r, s, d, dem) in DSD_keys )
-	  for (r,dem) in used_dems
+	    if (r, p, s, d, dem) in DSD_keys )
+	  for (r, p, dem) in used_dems
 	}
 
 	indices = set(
@@ -1054,7 +1059,7 @@ def RegionalExchangeCapacityConstraintIndices ( M ):
 		(r_e, r_i, t, v)
 
 		for r_e, p, i in M.exportRegions.keys()
-		for r_i, t, v, o in M.exportRegions[r_e, p, i] 
+		for r_i, t, v, o in M.exportRegions[r_e, p, i]
 	)
 
 	return indices
@@ -1068,7 +1073,7 @@ def CommodityBalanceConstraintIndices ( M ):
 	indices = set(
 	  (r, p, s, d, o)
 
-	  for r, p, o in period_commodity #r in this line includes interregional transfer combinations (not needed).  
+	  for r, p, o in period_commodity #r in this line includes interregional transfer combinations (not needed).
 	  if r in M.regions # this line ensures only the regions are included.
 	  for t, v in M.commodityUStreamProcess[ r, p, o ]
 	  if (r, t) not in M.tech_storage and t not in M.tech_annual
@@ -1088,7 +1093,7 @@ def CommodityBalanceAnnualConstraintIndices ( M ):
 	indices = set(
 	  (r, p, o)
 
-	  for r, p, o in period_commodity #r in this line includes interregional transfer combinations (not needed).  
+	  for r, p, o in period_commodity #r in this line includes interregional transfer combinations (not needed).
 	  if r in M.regions # this line ensures only the regions are included.
 	  for t, v in M.commodityUStreamProcess[ r, p, o ]
 	  if (r, t) not in M.tech_storage and t in M.tech_annual
@@ -1100,16 +1105,16 @@ def CommodityBalanceAnnualConstraintIndices ( M ):
 def StorageVariableIndices ( M ):
 	indices = set(
 		(r, p, s, d, t, v)
-		
+
 		for r, p, t in M.storageVintages.keys()
 		for s in M.time_season
-		for d in M.time_of_day		
+		for d in M.time_of_day
 		for v in M.storageVintages[ r, p, t ]
 
 	)
 
 	return indices
-	
+
 
 def StorageInitIndices ( M ):
 	indices = set(
@@ -1149,7 +1154,7 @@ def RampConstraintSeasonIndices ( M ):
 	  (r, p, s, t, v)
 
 	  for r, p,t in M.rampVintages.keys()
-	  for s in M.time_season	  
+	  for s in M.time_season
 	  for v in M.rampVintages[ r, p, t ]
 	)
 
@@ -1195,16 +1200,16 @@ def TechInputSplitAnnualConstraintIndices ( M ):
 	  for v in M.inputsplitVintages[ r, p, i, t ]
 	)
 
-	return indices	
+	return indices
 
 def TechInputSplitAverageConstraintIndices ( M ):
 	indices = set(
 	  (r, p, i, t, v)
 
-	  for r, p, i, t in M.inputsplitaverageVintages.keys() if t in M.tech_variable 
+	  for r, p, i, t in M.inputsplitaverageVintages.keys() if t in M.tech_variable
 	  for v in M.inputsplitaverageVintages[ r, p, i, t ]
 	)
-	return indices	
+	return indices
 
 def TechOutputSplitConstraintIndices ( M ):
 	indices = set(
