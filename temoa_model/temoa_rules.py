@@ -78,17 +78,17 @@ possibility.
     if t in M.tech_curtailment:
         # If technologies are present in the curtailment set, then enough
         # capacity must be available to cover both activity and curtailment.
-        return value(M.CapacityFactorProcess[r, s, d, t, v]) \
-            * value(M.CapacityToActivity[r, t]) * value(M.SegFrac[s, d]) \
+        return value(M.CapacityFactorProcess[r, p, s, d, t, v]) \
+            * value(M.CapacityToActivity[r, t]) * value(M.SegFrac[p, s, d]) \
             * value(M.ProcessLifeFrac[r, p, t, v]) \
             * M.V_Capacity[r, t, v] == useful_activity + sum( \
             M.V_Curtailment[r, p, s, d, S_i, t, v, S_o] \
             for S_i in M.processInputs[r, p, t, v] \
             for S_o in M.ProcessOutputsByInput[r, p, t, v, S_i])
     else:
-        return value(M.CapacityFactorProcess[r, s, d, t, v]) \
+        return value(M.CapacityFactorProcess[r, p, s, d, t, v]) \
         * value(M.CapacityToActivity[r, t]) \
-        * value(M.SegFrac[s, d]) \
+        * value(M.SegFrac[p, s, d]) \
         * value(M.ProcessLifeFrac[r, p, t, v]) \
         * M.V_Capacity[r, t, v] >= useful_activity
 
@@ -370,7 +370,7 @@ def PeriodCost_rule(M, p):
         if S_p == p and S_t not in M.tech_annual
         for S_i in M.processInputs[r, S_p, S_t, S_v]
         for S_o in M.ProcessOutputsByInput[r, S_p, S_t, S_v, S_i]
-        for s in M.time_season
+        for (_p, s) in M.time_seasons_per_period if _p == p
         for d in M.time_of_day
     )
 
@@ -438,7 +438,7 @@ could satisfy both an end-use and internal system demand, then the output from
         M.V_FlowOutAnnual[r, p, S_i, S_t, S_v, dem]
         for S_t, S_v in M.commodityUStreamProcess[r, p, dem] if S_t in M.tech_annual
         for S_i in M.ProcessInputsByOutput[r, p, S_t, S_v, dem]
-    ) * value( M.SegFrac[ s, d])
+    ) * value( M.SegFrac[p, s, d])
 
     DemandConstraintErrorCheck(supply + supply_annual, r, p, s, d, dem)
 
@@ -586,7 +586,7 @@ reduces computational burden.
         for S_o in M.ProcessOutputsByInput[r, p, S_t, S_v, c]
     )
 
-    vflow_in_ToNonStorageAnnual = value(M.SegFrac[s, d]) * sum(
+    vflow_in_ToNonStorageAnnual = value(M.SegFrac[p, s, d]) * sum(
         M.V_FlowOutAnnual[r, p, c, S_t, S_v, S_o] / value(M.Efficiency[r, c, S_t, S_v, S_o])
         for S_t, S_v in M.commodityDStreamProcess[r, p, c] if S_t not in M.tech_storage and S_t in M.tech_annual
         for S_o in M.ProcessOutputsByInput[r, p, S_t, S_v, c]
@@ -677,7 +677,7 @@ While the commodity :math:`c` can only be produced by technologies in the
         for S_t, S_v in M.commodityDStreamProcess[r, p, c] if S_t not in M.tech_annual
         for S_o in M.ProcessOutputsByInput[r, p, S_t, S_v, c]
         for d in M.time_of_day
-        for s in M.time_season
+        for (_p, s) in M.time_seasons_per_period if _p == p
     )
 
     vflow_in_annual = sum(
@@ -746,7 +746,7 @@ belonging to the :code:`tech_annual` set.
       collected = sum(
           M.V_FlowOut[reg, p, S_s, S_d, S_i, S_t, S_v, r]
           for S_i, S_t, S_v in M.ProcessByPeriodAndOutput.keys()
-          for S_s in M.time_season
+          for (_p, s) in M.time_seasons_per_period if _p == p
           for S_d in M.time_of_day
       )
     except:
@@ -823,8 +823,8 @@ functionality is currently on the Temoa TODO list.
     )
 
     expr = (
-        activity_sd * M.SegFrac[s, d_0]
-        == activity_sd_0 * M.SegFrac[s, d]
+        activity_sd * M.SegFrac[p, s, d_0]
+        == activity_sd_0 * M.SegFrac[p, s, d]
     )
 
     return expr
@@ -928,18 +928,19 @@ All equations below are sparsely indexed such that:
     # This storage formulation allows stored energy to carry over through
     # time of day and seasons, but must be zeroed out at the end of each period, i.e.,
     # the last time slice of the last season must zero out
-    if d == M.time_of_day.last() and s == M.time_season.last():
+    if d == M.time_of_day.last() and s == M.time_seasons_per_period_dict[p][-1]:
         d_prev = M.time_of_day.prev(d)
         expr = M.V_StorageLevel[r, p, s, d_prev, t, v] + stored_energy == M.V_StorageInit[r, t,v]
 
     # First time slice of the first season (i.e., start of period), starts at StorageInit level
-    elif d == M.time_of_day.first() and s == M.time_season.first():
+    elif d == M.time_of_day.first() and s == M.time_seasons_per_period_dict[p][0]:
         expr = M.V_StorageLevel[r, p, s, d, t, v] == M.V_StorageInit[r,t,v] + stored_energy
 
     # First time slice of any season that is NOT the first season
     elif d == M.time_of_day.first():
         d_last = M.time_of_day.last()
-        s_prev = M.time_season.prev(s)
+        s_idx = M.time_seasons_per_period_dict[p].index(s)
+        s_prev = M.time_seasons_per_period_dict[p][s_idx-1]
         expr = (
             M.V_StorageLevel[r, p, s, d, t, v]
             == M.V_StorageLevel[r, p, s_prev, d_last, t, v] + stored_energy
@@ -989,7 +990,7 @@ scale the storage duration to account for the number of days in each season.
         M.V_Capacity[r, t, v]
         * M.CapacityToActivity[r, t]
         * (M.StorageDuration[r, t] / 8760)
-        * sum(M.SegFrac[s,S_d] for S_d in M.time_of_day) * 365
+        * sum(M.SegFrac[p, s, S_d] for S_d in M.time_of_day) * 365
         * value(M.ProcessLifeFrac[r, p, t, v])
     )
     expr = M.V_StorageLevel[r, p, s, d, t, v] <= energy_capacity
@@ -1025,7 +1026,7 @@ limited by the power capacity (typically GW) of the storage unit.
     max_charge = (
         M.V_Capacity[r, t, v]
         * M.CapacityToActivity[r, t]
-        * M.SegFrac[s, d]
+        * M.SegFrac[p, s, d]
         * value(M.ProcessLifeFrac[r, p, t, v])
     )
 
@@ -1062,7 +1063,7 @@ is limited by the power capacity (typically GW) of the storage unit.
     max_discharge = (
         M.V_Capacity[r, t, v]
         * M.CapacityToActivity[r, t]
-        * M.SegFrac[s, d]
+        * M.SegFrac[p, s, d]
         * value(M.ProcessLifeFrac[r, p, t, v])
     )
 
@@ -1107,7 +1108,7 @@ the capacity (typically GW) of the storage unit.
     max_throughput = (
         M.V_Capacity[r, t, v]
         * M.CapacityToActivity[r, t]
-        * M.SegFrac[s, d]
+        * M.SegFrac[p, s, d]
         * value(M.ProcessLifeFrac[r, p, t, v])
     )
     expr = throughput <= max_throughput
@@ -1139,13 +1140,16 @@ capacity could lead to more expensive solutions.
       \\
       \forall \{r, t, v\} \in \Theta_{\text{StorageInit}}
 """
-
-    s = M.time_season.first()
+    period_seasons = M.SeasonWeights.sparse_keys()
+    year_one = M.time_optimize.first()
+    #seasons_year_1 = set(s in M.time_season if (p, s) in period_seasons)
+    seasons_year_1 = set(M.time_season[year_one, :])
+    s = seasons_year_1.first()
     energy_capacity = (
         M.V_Capacity[r, t, v]
         * M.CapacityToActivity[r, t]
         * (M.StorageDuration[r, t] / 8760)
-        * sum(M.SegFrac[s,S_d] for S_d in M.time_of_day) * 365
+        * sum(M.SegFrac[p,s,S_d] for S_d in M.time_of_day) * 365
         * value(M.ProcessLifeFrac[r, v, t, v])
     )
 
@@ -1216,8 +1220,8 @@ In the :code:`RampUpDay` and :code:`RampUpSeason` constraints, we assume
         )
 
         expr_left = (
-            activity_sd / value(M.SegFrac[s, d])
-            - activity_sd_prev / value(M.SegFrac[s, d_prev])
+            activity_sd / value(M.SegFrac[p, s, d])
+            - activity_sd_prev / value(M.SegFrac[p, s, d_prev])
         ) / value(M.CapacityToActivity[r,t])
         expr_right = M.V_Capacity[r, t, v] * value(M.RampUp[r, t])
         expr = expr_left <= expr_right
@@ -1267,8 +1271,8 @@ constraint to limit ramp down rates between any two adjacent time slices.
         )
 
         expr_left = (
-            activity_sd / value(M.SegFrac[s, d])
-            - activity_sd_prev / value(M.SegFrac[s, d_prev])
+            activity_sd / value(M.SegFrac[p, s, d])
+            - activity_sd_prev / value(M.SegFrac[p, s, d_prev])
         ) / value(M.CapacityToActivity[r,t])
         expr_right = -(M.V_Capacity[r, t, v] * value(M.RampDown[r, t]))
         expr = expr_left >= expr_right
@@ -1303,8 +1307,8 @@ respectively.
       \\
       \forall \{r, p, s, t, v\} \in \Theta_{\text{RampUpSeason}}
 """
-    if s != M.time_season.first():
-        s_prev = M.time_season.prev(s)
+    if s != M.time_season[p,:].first():
+        s_prev = M.time_season[p,:].prev(s)
         d_first = M.time_of_day.first()
         d_last = M.time_of_day.last()
 
@@ -1321,8 +1325,8 @@ respectively.
         )
 
         expr_left = (
-            activity_sd_first / M.SegFrac[s, d_first]
-            - activity_s_prev_d_last / M.SegFrac[s_prev, d_last]
+            activity_sd_first / M.SegFrac[p, s, d_first]
+            - activity_s_prev_d_last / M.SegFrac[p, s_prev, d_last]
         ) / value(M.CapacityToActivity[r,t])
         expr_right = M.V_Capacity[r, t, v] * value(M.RampUp[r, t])
         expr = expr_left <= expr_right
@@ -1358,8 +1362,8 @@ between any two adjacent seasons.
       \\
       \forall \{r, p, s, t, v\} \in \Theta_{\text{RampDownSeason}}
 """
-    if s != M.time_season.first():
-        s_prev = M.time_season.prev(s)
+    if s != M.time_season[p,:].first():
+        s_prev = M.time_season[p,:].prev(s)
         d_first = M.time_of_day.first()
         d_last = M.time_of_day.last()
 
@@ -1376,8 +1380,8 @@ between any two adjacent seasons.
         )
 
         expr_left = (
-            activity_sd_first / value(M.SegFrac[s, d_first])
-            - activity_s_prev_d_last / value(M.SegFrac[s_prev, d_last])
+            activity_sd_first / value(M.SegFrac[p, s, d_first])
+            - activity_s_prev_d_last / value(M.SegFrac[p, s_prev, d_last])
         ) / value(M.CapacityToActivity[r,t])
         expr_right = -(M.V_Capacity[r, t, v] * value(M.RampDown[r, t]))
         expr = expr_left >= expr_right
@@ -1477,7 +1481,7 @@ we write this equation for all the time-slices defined in the database in each r
         * M.ProcessLifeFrac[r, p, t, v]
         * M.V_Capacity[r, t, v]
         * value(M.CapacityToActivity[r, t])
-        * value(M.SegFrac[s, d])
+        * value(M.SegFrac[p, s, d])
         for t in M.tech_reserve
         if (r, p, t) in M.processVintages.keys()
         for v in M.processVintages[r, p, t]
@@ -1553,7 +1557,7 @@ output in separate terms.
         if tmp_e == e and tmp_r == reg and S_t not in M.tech_annual
         # EmissionsActivity not indexed by p, so make sure (r,p,t,v) combos valid
         if (reg, p, S_t, S_v) in M.processInputs.keys()
-        for S_s in M.time_season
+        for (_p, S_s) in M.time_seasons_per_period if _p == p
         for S_d in M.time_of_day
     )
 
@@ -1565,7 +1569,7 @@ output in separate terms.
         if tmp_e == e and tmp_r == reg and S_t not in M.tech_annual and S_t in M.tech_flex and S_o in M.flex_commodities
         # EmissionsActivity not indexed by p, so make sure (r,p,t,v) combos valid
         if (reg, p, S_t, S_v) in M.processInputs.keys()
-        for S_s in M.time_season
+        for (_p, S_s) in M.time_seasons_per_period if _p == p
         for S_d in M.time_of_day
     )
 
@@ -1577,7 +1581,7 @@ output in separate terms.
         if tmp_e == e and tmp_r == reg and S_t not in M.tech_annual and S_t in M.tech_curtailment
         # EmissionsActivity not indexed by p, so make sure (r,p,t,v) combos valid
         if (reg, p, S_t, S_v) in M.processInputs.keys()
-        for S_s in M.time_season
+        for (_p, S_s) in M.time_seasons_per_period if _p == p
         for S_d in M.time_of_day
     )
 
@@ -1693,7 +1697,7 @@ set.
           for S_v in M.processVintages[r, p, t]
           for S_i in M.processInputs[r, p, t, S_v]
           for S_o in M.ProcessOutputsByInput[r, p, t, S_v, S_i]
-          for s in M.time_season
+          for (_p, s) in M.time_seasons_per_period if _p == p
           for d in M.time_of_day
       )
     except:
@@ -1748,7 +1752,7 @@ set.
           for S_v in M.processVintages[r, p, t]
           for S_i in M.processInputs[r, p, t, S_v]
           for S_o in M.ProcessOutputsByInput[r, p, t, S_v, S_i]
-          for s in M.time_season
+          for (_p, s) in M.time_seasons_per_period if _p == p
           for d in M.time_of_day
       )
     except:
@@ -1793,7 +1797,7 @@ refers to the :code:`MinGenGroupTarget` parameter.
         for S_v in M.processVintages[r, p, S_t]
         for S_i in M.processInputs[r, p, S_t, S_v]
         for S_o in M.ProcessOutputsByInput[r, p, S_t, S_v, S_i]
-        for s in M.time_season
+        for (_p, s) in M.time_seasons_per_period if _p == p
         for d in M.time_of_day
     )
 
@@ -1854,7 +1858,7 @@ constraints are region and tech.
           for S_v in M.processVintages[r, p, t]
           for S_i in M.processInputs[r, p, t, S_v]
           for S_o in M.ProcessOutputsByInput[r, p, t, S_v, S_i]
-          for s in M.time_season
+          for (_p, s) in M.time_seasons_per_period if _p == p
           for d in M.time_of_day
       )
     except:
@@ -1974,14 +1978,14 @@ the constraint only fixes the input shares over the course of a year.
 
     inp = sum(
         M.V_FlowOut[r, p, s, d, i, t, v, S_o] / value(M.Efficiency[r, i, t, v, S_o])
-        for s in M.time_season
+        for (_p, s) in M.time_seasons_per_period if _p == p
         for d in M.time_of_day
         for S_o in M.ProcessOutputsByInput[r, p, t, v, i]
     )
 
     total_inp = sum(
         M.V_FlowOut[r, p, s, d, S_i, t, v, S_o] / value(M.Efficiency[r, S_i, t, v, S_o])
-        for s in M.time_season
+        for (_p, s) in M.time_seasons_per_period if _p == p
         for d in M.time_of_day
         for S_i in M.processInputs[r, p, t, v]
         for S_o in M.ProcessOutputsByInput[r, p, t, v, i]

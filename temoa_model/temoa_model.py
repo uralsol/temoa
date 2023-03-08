@@ -56,6 +56,7 @@ def temoa_create_model(name="Temoa"):
     M.time_season = Set(ordered=True)
     M.time_of_day = Set(ordered=True)
 
+
     # Define regions
     M.regions = Set()
     # RegionalIndices is the set of all the possible combinations of interregional
@@ -115,14 +116,24 @@ def temoa_create_model(name="Temoa"):
 
     # Define time-related parameters
     M.PeriodLength = Param(M.time_optimize, initialize=ParamPeriodLength)
-    M.SegFrac = Param(M.time_season, M.time_of_day)
+
+    # Define a table linking specific elements from time_season to
+    # specific elements of time_optimize. Note: an element of time_season
+    # (i.e. a representative day) can be used in multiple elements of
+    # time_optimize (i.e. planning years).
+    M.time_seasons_per_period = Set(within=M.time_optimize * M.time_season, ordered=True)
+
+    M.SegFrac_psd = Set(dimen=3, initialize=SegFracIndices)
+    M.SegFrac = Param(M.SegFrac_psd)
     M.validate_SegFrac = BuildAction(rule=validate_SegFrac)
 
     # Define demand- and resource-related parameters
-    M.DemandDefaultDistribution = Param(M.time_season, M.time_of_day, mutable=True)
-    M.DemandSpecificDistribution = Param(
-        M.regions, M.time_optimize, M.time_season, M.time_of_day, M.commodity_demand, mutable=True
-    )
+    M.DemandDefaultDistribution_psd = Set(within=M.time_optimize * M.time_season * M.time_of_day, initialize=DemandDefaultDistributionIndices)
+    M.DemandDefaultDistribution = Param(M.DemandDefaultDistribution_psd, mutable=True)
+
+    M.DemandSpecificDistribution_rpsdc = Set(within=M.regions * M.time_optimize * M.time_season * M.time_of_day * M.commodity_demand,
+                                        initialize=DemandSpecificDistributionIndices)
+    M.DemandSpecificDistribution = Param(M.DemandSpecificDistribution_rpsdc, mutable=True)
 
     M.Demand = Param(M.regions, M.time_optimize, M.commodity_demand)
     M.initialize_Demands = BuildAction(rule=CreateDemands)
@@ -139,11 +150,11 @@ def temoa_create_model(name="Temoa"):
     )
     M.validate_UsedEfficiencyIndices = BuildAction(rule=CheckEfficiencyIndices)
 
-    M.CapacityFactor_rsdtv = Set(dimen=5, initialize=CapacityFactorProcessIndices)
-    M.CapacityFactorProcess = Param(M.CapacityFactor_rsdtv, mutable=True)
+    M.CapacityFactor_rpsdtv = Set(dimen=6, initialize=CapacityFactorProcessIndices)
+    M.CapacityFactorProcess = Param(M.CapacityFactor_rpsdtv, mutable=True)
 
-    M.CapacityFactor_rsdt = Set(dimen=4, initialize=CapacityFactorTechIndices)
-    M.CapacityFactorTech = Param(M.CapacityFactor_rsdt, default=1)
+    M.CapacityFactor_rpsdt = Set(dimen=5, initialize=CapacityFactorTechIndices)
+    M.CapacityFactorTech = Param(M.CapacityFactor_rpsdt, default=1)
 
     M.initialize_CapacityFactors = BuildAction(rule=CreateCapacityFactors)
 
@@ -530,7 +541,6 @@ def temoa_create_model(name="Temoa"):
 
 
 model = temoa_create_model()
-
 
 def runModelUI(config_filename):
     """This function launches the model run from the Temoa GUI"""

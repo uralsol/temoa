@@ -27,9 +27,9 @@ import IPython
 
 # Ensure compatibility with Python 2.7 and 3
 try:
-    from cStringIO import StringIO
+	from cStringIO import StringIO
 except ImportError:
-    from io import StringIO
+	from io import StringIO
 
 try:
 	from pyomo.core import (
@@ -191,27 +191,25 @@ def validate_time ( M ):
 
 
 def validate_SegFrac ( M ):
+	for p in M.time_optimize:
+		total = sum( M.SegFrac[(_p, _s, _d)] for (_p, _s, _d) in SegFracIndices(M) if _p == p)
+		if abs(float(total) - 1.0) > 0.001:
+			# We can't explicitly test for "!= 1.0" because of incremental rounding
+			# errors associated with the specification of SegFrac by time slice,
+			# but we check to make sure it is within the specified tolerance.
+			key_padding = max(map( get_str_padding, M.SegFrac.sparse_iterkeys() ))
 
-	total = sum( i for i in M.SegFrac.itervalues() )
+			format = "%%-%ds = %%s" % key_padding
+				# Works out to something like "%-25s = %s"
 
-	if abs(float(total) - 1.0) > 0.001:
-		# We can't explicitly test for "!= 1.0" because of incremental rounding
-		# errors associated with the specification of SegFrac by time slice,
-		# but we check to make sure it is within the specified tolerance.
+			items = sorted( M.SegFrac.items() )
+			items = '\n   '.join( format % (str(k), v) for k, v in items )
 
-		key_padding = max(map( get_str_padding, M.SegFrac.sparse_iterkeys() ))
+			msg = ('The values of the SegFrac parameter do not sum to 1.  Each item '
+			  'in SegFrac represents a fraction of a year, so they must total to '
+			  '1.  Current values:\n   {}\n\tsum = {}')
 
-		format = "%%-%ds = %%s" % key_padding
-			# Works out to something like "%-25s = %s"
-
-		items = sorted( M.SegFrac.items() )
-		items = '\n   '.join( format % (str(k), v) for k, v in items )
-
-		msg = ('The values of the SegFrac parameter do not sum to 1.  Each item '
-		  'in SegFrac represents a fraction of a year, so they must total to '
-		  '1.  Current values:\n   {}\n\tsum = {}')
-
-		raise Exception( msg.format(items, total ))
+			raise Exception( msg.format(items, total ))
 
 
 def CheckEfficiencyIndices ( M ):
@@ -258,17 +256,8 @@ def CreateCapacityFactors ( M ):
 	CFP = M.CapacityFactorProcess
 
 	# Step 1
-	processes  = set( (r, t, v) for r, i, t, v, o in M.Efficiency.sparse_iterkeys() )
 
-	all_cfs = set(
-	  (r, s, d, t, v)
-
-	  for (r, t, v), s, d in cross_product(
-	    processes,
-	    M.time_season,
-	    M.time_of_day
-	  )
-	)
+	all_cfs = CapacityFactorProcessIndices(M)
 
 	# Step 2
 	unspecified_cfs = all_cfs.difference( CFP.sparse_iterkeys() )
@@ -282,8 +271,8 @@ def CreateCapacityFactors ( M ):
 
 	if unspecified_cfs:
 		# CFP._constructed = False
-		for r, s, d, t, v in unspecified_cfs:
-			CFP[r, s, d, t, v] = M.CapacityFactorTech[r, s, d, t]
+		for r, p, s, d, t, v in unspecified_cfs:
+			CFP[r, p, s, d, t, v] = M.CapacityFactorTech[r, p, s, d, t]
 		# CFP._constructed = True
 
 
@@ -353,9 +342,9 @@ def CreateDemands ( M ):
 	# region in the tuple (r, p, s, d, dem)
 	DSD_region_getter = iget(0)
 
-    # iget(1): 0 = magic number to specify the second column.  Currently the
+	# iget(1): 0 = magic number to specify the second column.  Currently the
 	# period in the tuple (r, p, s, d, dem)
-    DSD_period_getter = iget(1)
+	DSD_period_getter = iget(1)
 
 
 	# Step 1
@@ -382,27 +371,28 @@ def CreateDemands ( M ):
 		# DDD._constructed = True
 
 	# Step 3
-	total = sum( i for i in DDD.itervalues() )
-	if abs(value(total) - 1.0) > 0.001:
-		# We can't explicitly test for "!= 1.0" because of incremental rounding
-		# errors associated with the specification of demand shares by time slice,
-		# but we check to make sure it is within the specified tolerance.
+	for p in M.time_optimize:
+		total = sum( DDD[(_p, _s, _d)] for (_p, _s, _d) in DDD.iterkeys() if _p == p)
+		if abs(value(total) - 1.0) > 0.001:
+			# We can't explicitly test for "!= 1.0" because of incremental rounding
+			# errors associated with the specification of demand shares by time slice,
+			# but we check to make sure it is within the specified tolerance.
 
-		key_padding = max(map( get_str_padding, DDD.sparse_iterkeys() ))
+			key_padding = max(map( get_str_padding, DDD.sparse_iterkeys() ))
 
-		format = "%%-%ds = %%s" % key_padding
-			# Works out to something like "%-25s = %s"
+			format = "%%-%ds = %%s" % key_padding
+				# Works out to something like "%-25s = %s"
 
-		items = sorted( DDD.items() )
-		items = '\n   '.join( format % (str(k), v) for k, v in items )
+			items = sorted( DDD.items() )
+			items = '\n   '.join( format % (str(k), v) for k, v in items )
 
-		msg = ('The values of the DemandDefaultDistribution parameter do not '
-		  'sum to 1.  The DemandDefaultDistribution specifies how end-use '
-		  'demands are distributed among the time slices (i.e., time_season, '
-		  'time_of_day), so together, the data must total to 1.  Current '
-		  'values:\n   {}\n\tsum = {}')
+			msg = ('The values of the DemandDefaultDistribution parameter do not '
+			  'sum to 1.  The DemandDefaultDistribution specifies how end-use '
+			  'demands are distributed among the time slices (i.e., time_season, '
+			  'time_of_day), so together, the data must total to 1.  Current '
+			  'values:\n   {}\n\tsum = {}')
 
-		raise Exception( msg.format(items, total) )
+			raise Exception( msg.format(items, total) )
 
 	# Step 4
 	DSD = M.DemandSpecificDistribution
@@ -412,7 +402,6 @@ def CreateDemands ( M ):
 	unset_demand_distributions = used_dems.difference( demands_specified )
 	unset_distributions = set(
 	   cross_product(M.regions, M.time_optimize, M.time_season, M.time_of_day, unset_demand_distributions))
-
 	if unset_distributions:
 		# Some hackery because Pyomo thinks that this Param is constructed.
 		# However, in our view, it is not yet, because we're specifically
@@ -420,7 +409,8 @@ def CreateDemands ( M ):
 		# valid, and that we will need.
 		# DSD._constructed = False
 		for r, p, s, d, dem in unset_distributions:
-			DSD[r, p, s, d, dem] = DDD[s, d]
+			if (p, s) in M.time_seasons_per_period:
+				DSD[r, p, s, d, dem] = DDD[p, s, d]
 		# DSD._constructed = True
 
 	# Step 5
@@ -505,7 +495,6 @@ def init_set_vintage_exist ( M ):
 def init_set_vintage_optimize ( M ):
 	return sorted( M.time_optimize )
 
-
 def CreateRegionalIndices ( M ):
 	regional_indices = set()
 	for r_i in M.regions:
@@ -541,6 +530,8 @@ def CreateSparseDicts ( M ):
 	l_first_period = min( M.time_future )
 	l_exist_indices = M.ExistingCapacity.sparse_keys()
 	l_used_techs = set()
+
+	M.time_seasons_per_period_dict = get_time_seasons_per_period_dict(M)
 
 	# The basis for the dictionaries are the sparse keys defined in the
 	# Efficiency table.
@@ -700,7 +691,7 @@ def CreateSparseDicts ( M ):
 	l_unused_techs = M.tech_all - l_used_techs
 	if l_unused_techs:
 		msg = ("Notice: '{}' specified as technology, but it is not utilized in "
-		       'the Efficiency parameter.\n')
+			   'the Efficiency parameter.\n')
 		for i in sorted( l_unused_techs ):
 			SE.write( msg.format( i ))
 
@@ -711,7 +702,7 @@ def CreateSparseDicts ( M ):
 	  for v in M.processVintages[ r, p, t ]
 	  for i in M.processInputs[ r, p, t, v ]
 	  for o in M.ProcessOutputsByInput[ r, p, t, v, i ]
-	  for s in M.time_season
+	  for s in M.time_seasons_per_period_dict[p]
 	  for d in M.time_of_day
 	)
 
@@ -731,7 +722,7 @@ def CreateSparseDicts ( M ):
 	  for v in M.processVintages[ r, p, t ]
 	  for i in M.processInputs[ r, p, t, v ]
 	  for o in M.ProcessOutputsByInput[ r, p, t, v, i ]
-	  for s in M.time_season
+	  for s in M.time_seasons_per_period_dict[p]
 	  for d in M.time_of_day
 	)
 
@@ -751,7 +742,7 @@ def CreateSparseDicts ( M ):
 	  for v in M.processVintages[ r, p, t ]
 	  for i in M.processInputs[ r, p, t, v ]
 	  for o in M.ProcessOutputsByInput[ r, p, t, v, i ]
-	  for s in M.time_season
+	  for s in M.time_seasons_per_period_dict[p]
 	  for d in M.time_of_day
 	)
 
@@ -764,7 +755,7 @@ def CreateSparseDicts ( M ):
 	  for v in M.curtailmentVintages[ r, p, t ]
 	  for i in M.processInputs[ r, p, t, v ]
 	  for o in M.ProcessOutputsByInput[ r, p, t, v, i ]
-	  for s in M.time_season
+	  for s in M.time_seasons_per_period_dict[p]
 	  for d in M.time_of_day
 	)
 
@@ -801,12 +792,29 @@ def CreateSparseDicts ( M ):
 # associated with specific parameters.
 # ---------------------------------------------------------------
 
+def get_time_seasons_per_period_dict( M ):
+	time_seasons_per_period_dict = {y: [] for y in M.time_optimize}
+
+	for p, s in M.time_seasons_per_period:
+		time_seasons_per_period_dict[p].append(s)
+
+	return time_seasons_per_period_dict
+
+
+def SegFracIndices ( M ):
+	indices = set(
+	  (p, s, d)
+	  for (p, s) in M.time_seasons_per_period
+	  for d in M.time_of_day
+	)
+	return indices
+
 def CapacityFactorProcessIndices ( M ):
 	indices = set(
-	  (r, s, d, t, v)
+	  (r, p, s, d, t, v)
 
 	  for r, i, t, v, o in M.Efficiency.sparse_iterkeys()
-	  for s in M.time_season
+	  for (p, s) in M.time_seasons_per_period
 	  for d in M.time_of_day
 	)
 
@@ -814,9 +822,9 @@ def CapacityFactorProcessIndices ( M ):
 
 def CapacityFactorTechIndices ( M ):
 	indices = set(
-	  (r, s, d, t)
+	  (r, p, s, d, t)
 
-	  for r, s, d, t, v in M.CapacityFactor_rsdtv
+	  for r, p, s, d, t, v in M.CapacityFactor_rpsdtv
 	)
 
 	return indices
@@ -832,6 +840,42 @@ def CostInvestIndices ( M ):
 	  (r, t, v)
 
 	  for r, p, t, v in M.processLoans
+	)
+
+	return indices
+
+def DemandSpecificDistributionIndices ( M ):
+	"""\
+This function returns a set of sparse indices that are used in the
+DemandSpecificDistribution parameter. It returns a tuple of the form:
+(r, p, s, d, dem) where "dem" is a demand commodity. It ensures that s,
+which represents an element of the "time_season" set, is permissible for
+the period in questions, "p". It checks this by using the "time_seasons_per_period"
+set.
+"""
+	indices = set(
+		(r, p, s, d, dem)
+		for r in M.regions
+		for (p, s) in M.time_seasons_per_period
+		for d in M.time_of_day
+		for dem in M.commodity_demand
+	)
+
+	return indices
+
+
+def DemandDefaultDistributionIndices ( M ):
+	"""\
+This function returns a set of sparse indices that are used in the
+DemandDefaultDistribution parameter. It returns a tuple of the form:
+(p, s, d). It ensures that s, which represents an element of the "time_season"
+set, is permissible for the period in questions, "p". It checks this by using
+the "SeasonWeights" parameter.
+"""
+	indices = set(
+		(p, s, d)
+		for (p, s) in M.time_seasons_per_period
+		for d in M.time_of_day
 	)
 
 	return indices
@@ -969,7 +1013,7 @@ def CapacityConstraintIndices ( M ):
 	  (r, p, s, d, t, v)
 
 	  for r, p, t, v in M.activeActivity_rptv if t not in M.tech_annual
-	  for s in M.time_season
+	  for s in M.time_seasons_per_period_dict[p]
 	  for d in M.time_of_day
 	)
 
@@ -982,7 +1026,7 @@ def LinkedTechConstraintIndices ( M ):
 	  for r, t, e in M.LinkedTechs.sparse_iterkeys()
 	  for p in M.time_optimize if (r, p, t) in M.processVintages.keys()
 	  for v in M.processVintages[ r, p, t ] if (r, p, t, v) in M.activeActivity_rptv
-	  for s in M.time_season
+	  for s in M.time_seasons_per_period_dict[p]
 	  for d in M.time_of_day
 
 	)
@@ -1013,11 +1057,12 @@ DemandActivity constraint. It returns a tuple of the form:
 and "first_d" are the reference season and time-of-day, respectively used to
 ensure demand activity remains consistent across time slices.
 """
-	first_s = M.time_season.first()
+
 	first_d = M.time_of_day.first()
 	for r,p,t,v,dem in M.ProcessInputsByOutput.keys():
+		first_s = M.time_seasons_per_period_dict[p][0]
 		if dem in M.commodity_demand and t not in M.tech_annual:
-			for s in M.time_season:
+			for s in M.time_seasons_per_period_dict[p]:
 				for d in M.time_of_day:
 					if s != first_s or d != first_d:
 						yield (r,p,s,d,t,v,dem,first_s,first_d)
@@ -1026,10 +1071,10 @@ def DemandConstraintIndices ( M ):
 	used_dems = set((r, p, dem) for r, p, dem in M.Demand.sparse_iterkeys())
 	DSD_keys = M.DemandSpecificDistribution.sparse_keys()
 	dem_slices = { (r,dem) : set(
-	    (s, d)
-	    for s in M.time_season
-	    for d in M.time_of_day
-	    if (r, p, s, d, dem) in DSD_keys )
+		(s, d)
+		for s in M.time_season
+		for d in M.time_of_day
+		if (r, p, s, d, dem) in DSD_keys )
 	  for (r, p, dem) in used_dems
 	}
 
@@ -1048,7 +1093,7 @@ def BaseloadDiurnalConstraintIndices ( M ):
 
 	  for r,p,t in M.baseloadVintages.keys()
 	  for v in M.baseloadVintages[ r, p, t ]
-	  for s in M.time_season
+	  for s in M.time_seasons_per_period_dict[p]
 	  for d in M.time_of_day
 	)
 
@@ -1077,7 +1122,7 @@ def CommodityBalanceConstraintIndices ( M ):
 	  if r in M.regions # this line ensures only the regions are included.
 	  for t, v in M.commodityUStreamProcess[ r, p, o ]
 	  if (r, t) not in M.tech_storage and t not in M.tech_annual
-	  for s in M.time_season
+	  for s in M.time_seasons_per_period_dict[p]
 	  for d in M.time_of_day
 	)
 
@@ -1107,7 +1152,7 @@ def StorageVariableIndices ( M ):
 		(r, p, s, d, t, v)
 
 		for r, p, t in M.storageVintages.keys()
-		for s in M.time_season
+		for s in M.time_seasons_per_period_dict[p]
 		for d in M.time_of_day
 		for v in M.storageVintages[ r, p, t ]
 
@@ -1142,7 +1187,7 @@ def RampConstraintDayIndices ( M ):
 	  (r, p, s, d, t, v)
 
 	  for r,p,t in M.rampVintages.keys()
-	  for s in M.time_season
+	  for s in M.time_seasons_per_period_dict[p]
 	  for d in M.time_of_day
 	  for v in M.rampVintages[ r, p, t ]
 	)
@@ -1154,7 +1199,7 @@ def RampConstraintSeasonIndices ( M ):
 	  (r, p, s, t, v)
 
 	  for r, p,t in M.rampVintages.keys()
-	  for s in M.time_season
+	  for s in M.time_seasons_per_period_dict[p]
 	  for v in M.rampVintages[ r, p, t ]
 	)
 
@@ -1175,7 +1220,7 @@ def ReserveMarginIndices ( M ):
 
 	   for r in M.regions
 	   for p in M.time_optimize
-	   for s in M.time_season
+	   for s in M.time_seasons_per_period_dict[p]
 	   for d in M.time_of_day
 	)
 	return indices
@@ -1186,7 +1231,7 @@ def TechInputSplitConstraintIndices ( M ):
 
 	  for r, p, i, t in M.inputsplitVintages.keys() if t not in M.tech_annual and t not in M.tech_variable
 	  for v in M.inputsplitVintages[ r, p, i, t ]
-	  for s in M.time_season
+	  for s in M.time_seasons_per_period_dict[p]
 	  for d in M.time_of_day
 	)
 
@@ -1217,7 +1262,7 @@ def TechOutputSplitConstraintIndices ( M ):
 
 	  for r, p, t, o in M.outputsplitVintages.keys() if t not in M.tech_annual
 	  for v in M.outputsplitVintages[ r, p, t, o ]
-	  for s in M.time_season
+	  for s in M.time_seasons_per_period_dict[p]
 	  for d in M.time_of_day
 	)
 
