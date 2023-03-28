@@ -18,6 +18,13 @@ CREATE TABLE "time_of_day" (
 	"t_day"	text,
 	PRIMARY KEY("t_day")
 );
+CREATE TABLE "time_seasons_per_period" (
+	"periods"	integer,
+	"season_name"	text,
+	FOREIGN KEY("periods") REFERENCES "time_periods"("t_periods"),
+	FOREIGN KEY("season_name") REFERENCES "time_season"("t_season"),
+	PRIMARY KEY("periods","season_name")
+);
 CREATE TABLE "technology_labels" (
 	"tech_labels"	text,
 	"tech_labels_desc"	text,
@@ -137,11 +144,13 @@ CREATE TABLE "StorageDuration" (
 	PRIMARY KEY("regions","tech")
 );
 CREATE TABLE "SegFrac" (
+	"periods"	integer,
 	"season_name"	text,
 	"time_of_day_name"	text,
 	"segfrac"	real CHECK("segfrac" >= 0 AND "segfrac" <= 1),
 	"segfrac_notes"	text,
-	PRIMARY KEY("season_name","time_of_day_name"),
+	PRIMARY KEY("periods","season_name","time_of_day_name"),
+	FOREIGN KEY("periods") REFERENCES "time_periods"("t_periods"),
 	FOREIGN KEY("season_name") REFERENCES "time_season"("t_season"),
 	FOREIGN KEY("time_of_day_name") REFERENCES "time_of_day"("t_day")
 );
@@ -297,7 +306,7 @@ CREATE TABLE "Output_CapacityByPeriodAndTech" (
 );
 CREATE TABLE "MyopicBaseyear" (
 	"year"	real
-	"notes"	text	
+	"notes"	text
 );
 CREATE TABLE "MinGenGroupWeight" (
 	"regions"	text,
@@ -470,14 +479,16 @@ CREATE TABLE "DiscountRate" (
 );
 CREATE TABLE "DemandSpecificDistribution" (
 	"regions"	text,
+	"periods"	integer,
 	"season_name"	text,
 	"time_of_day_name"	text,
 	"demand_name"	text,
 	"dds"	real CHECK("dds" >= 0 AND "dds" <= 1),
 	"dds_notes"	text,
-	PRIMARY KEY("regions","season_name","time_of_day_name","demand_name"),
-	FOREIGN KEY("season_name") REFERENCES "time_season"("t_season"),
+	PRIMARY KEY("regions","periods","season_name","time_of_day_name","demand_name"),
+	FOREIGN KEY("periods") REFERENCES "time_periods"("t_periods"),
 	FOREIGN KEY("time_of_day_name") REFERENCES "time_of_day"("t_day"),
+	FOREIGN KEY("season_name") REFERENCES "time_season"("t_season"),
 	FOREIGN KEY("demand_name") REFERENCES "commodities"("comm_name")
 );
 CREATE TABLE "Demand" (
@@ -538,25 +549,29 @@ CREATE TABLE "CapacityToActivity" (
 );
 CREATE TABLE "CapacityFactorTech" (
 	"regions"	text,
+	"periods"	integer,
 	"season_name"	text,
 	"time_of_day_name"	text,
 	"tech"	text,
 	"cf_tech"	real CHECK("cf_tech" >= 0 AND "cf_tech" <= 1),
 	"cf_tech_notes"	text,
-	PRIMARY KEY("regions","season_name","time_of_day_name","tech"),
+	PRIMARY KEY("regions","periods", "season_name","time_of_day_name","tech"),
+	FOREIGN KEY("periods") REFERENCES "time_periods"("t_periods"),
 	FOREIGN KEY("season_name") REFERENCES "time_season"("t_season"),
-	FOREIGN KEY("time_of_day_name") REFERENCES "time_of_day"("t_day"),
-	FOREIGN KEY("tech") REFERENCES "technologies"("tech")
+	FOREIGN KEY("tech") REFERENCES "technologies"("tech"),
+	FOREIGN KEY("time_of_day_name") REFERENCES "time_of_day"("t_day")
 );
 CREATE TABLE "CapacityFactorProcess" (
 	"regions"	text,
+	"periods"	integer,
 	"season_name"	text,
 	"time_of_day_name"	text,
 	"tech"	text,
 	"vintage"	integer,
 	"cf_process"	real CHECK("cf_process" >= 0 AND "cf_process" <= 1),
 	"cf_process_notes"	text,
-	PRIMARY KEY("regions","season_name","time_of_day_name","tech","vintage"),
+	PRIMARY KEY("regions","periods","season_name","time_of_day_name","tech","vintage"),
+	FOREIGN KEY("periods") REFERENCES "time_periods"("t_periods"),
 	FOREIGN KEY("tech") REFERENCES "technologies"("tech"),
 	FOREIGN KEY("season_name") REFERENCES "time_season"("t_season"),
 	FOREIGN KEY("time_of_day_name") REFERENCES "time_of_day"("t_day")
@@ -582,7 +597,7 @@ CREATE TABLE "MaxResource" (
 CREATE TABLE "LinkedTechs" (
 	"primary_region"	text,
 	"primary_tech"	text,
-	"emis_comm" text, 
+	"emis_comm" text,
  	"linked_tech"	text,
 	"tech_linked_notes"	text,
 	FOREIGN KEY("primary_tech") REFERENCES "technologies"("tech"),

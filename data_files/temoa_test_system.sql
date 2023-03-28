@@ -7,6 +7,7 @@ INSERT INTO `time_season` VALUES ('spring');
 INSERT INTO `time_season` VALUES ('summer');
 INSERT INTO `time_season` VALUES ('fall');
 INSERT INTO `time_season` VALUES ('winter');
+INSERT INTO `time_season` VALUES ('winter2');
 CREATE TABLE "time_periods" (
 	"t_periods"	integer,
 	"flag"	text,
@@ -31,6 +32,25 @@ CREATE TABLE "time_of_day" (
 );
 INSERT INTO `time_of_day` VALUES ('day');
 INSERT INTO `time_of_day` VALUES ('night');
+CREATE TABLE "time_seasons_per_period" (
+	"periods"	integer,
+	"season_name"	text,
+	FOREIGN KEY("periods") REFERENCES "time_periods"("t_periods"),
+	FOREIGN KEY("season_name") REFERENCES "time_season"("t_season"),
+	PRIMARY KEY("periods","season_name")
+);
+INSERT INTO `time_seasons_per_period` VALUES (2020,'spring');
+INSERT INTO `time_seasons_per_period` VALUES (2020,'summer');
+INSERT INTO `time_seasons_per_period` VALUES (2020,'fall');
+INSERT INTO `time_seasons_per_period` VALUES (2020,'winter');
+INSERT INTO `time_seasons_per_period` VALUES (2025,'spring');
+INSERT INTO `time_seasons_per_period` VALUES (2025,'summer');
+INSERT INTO `time_seasons_per_period` VALUES (2025,'fall');
+INSERT INTO `time_seasons_per_period` VALUES (2025,'winter');
+INSERT INTO `time_seasons_per_period` VALUES (2030,'spring');
+INSERT INTO `time_seasons_per_period` VALUES (2030,'summer');
+INSERT INTO `time_seasons_per_period` VALUES (2030,'fall');
+INSERT INTO `time_seasons_per_period` VALUES (2030,'winter2');
 CREATE TABLE "technology_labels" (
 	"tech_labels"	text,
 	"tech_labels_desc"	text,
@@ -205,22 +225,43 @@ CREATE TABLE "StorageDuration" (
 INSERT INTO `StorageDuration` VALUES ('R1','E_BATT',8.0,'8-hour duration specified as fraction of a day');
 INSERT INTO `StorageDuration` VALUES ('R2','E_BATT',8.0,'8-hour duration specified as fraction of a day');
 CREATE TABLE "SegFrac" (
+	"periods"	integer,
 	"season_name"	text,
 	"time_of_day_name"	text,
 	"segfrac"	real CHECK("segfrac" >= 0 AND "segfrac" <= 1),
 	"segfrac_notes"	text,
-	PRIMARY KEY("season_name","time_of_day_name"),
+	PRIMARY KEY("periods","season_name","time_of_day_name"),
+	FOREIGN KEY("periods") REFERENCES "time_periods"("t_periods"),
 	FOREIGN KEY("season_name") REFERENCES "time_season"("t_season"),
 	FOREIGN KEY("time_of_day_name") REFERENCES "time_of_day"("t_day")
 );
-INSERT INTO `SegFrac` VALUES ('spring','day',0.125,'Spring - Day');
-INSERT INTO `SegFrac` VALUES ('spring','night',0.125,'Spring - Night');
-INSERT INTO `SegFrac` VALUES ('summer','day',0.125,'Summer - Day');
-INSERT INTO `SegFrac` VALUES ('summer','night',0.125,'Summer - Night');
-INSERT INTO `SegFrac` VALUES ('fall','day',0.125,'Fall - Day');
-INSERT INTO `SegFrac` VALUES ('fall','night',0.125,'Fall - Night');
-INSERT INTO `SegFrac` VALUES ('winter','day',0.125,'Winter - Day');
-INSERT INTO `SegFrac` VALUES ('winter','night',0.125,'Winter - Night');
+INSERT INTO `SegFrac` VALUES (2020,'spring','day',0.125,'Spring - Day');
+INSERT INTO `SegFrac` VALUES (2020,'spring','night',0.125,'Spring - Night');
+INSERT INTO `SegFrac` VALUES (2020,'summer','day',0.125,'Summer - Day');
+INSERT INTO `SegFrac` VALUES (2020,'summer','night',0.125,'Summer - Night');
+INSERT INTO `SegFrac` VALUES (2020,'fall','day',0.125,'Fall - Day');
+INSERT INTO `SegFrac` VALUES (2020,'fall','night',0.125,'Fall - Night');
+INSERT INTO `SegFrac` VALUES (2020,'winter','day',0.125,'Winter - Day');
+INSERT INTO `SegFrac` VALUES (2020,'winter','night',0.125,'Winter - Night');
+
+INSERT INTO `SegFrac` VALUES (2025,'spring','day',0.125,'Spring - Day');
+INSERT INTO `SegFrac` VALUES (2025,'spring','night',0.125,'Spring - Night');
+INSERT INTO `SegFrac` VALUES (2025,'summer','day',0.125,'Summer - Day');
+INSERT INTO `SegFrac` VALUES (2025,'summer','night',0.125,'Summer - Night');
+INSERT INTO `SegFrac` VALUES (2025,'fall','day',0.125,'Fall - Day');
+INSERT INTO `SegFrac` VALUES (2025,'fall','night',0.125,'Fall - Night');
+INSERT INTO `SegFrac` VALUES (2025,'winter','day',0.125,'Winter - Day');
+INSERT INTO `SegFrac` VALUES (2025,'winter','night',0.125,'Winter - Night');
+
+INSERT INTO `SegFrac` VALUES (2030,'spring','day',0.125,'Spring - Day');
+INSERT INTO `SegFrac` VALUES (2030,'spring','night',0.125,'Spring - Night');
+INSERT INTO `SegFrac` VALUES (2030,'summer','day',0.13,'Summer - Day');
+INSERT INTO `SegFrac` VALUES (2030,'summer','night',0.13,'Summer - Night');
+INSERT INTO `SegFrac` VALUES (2030,'fall','day',0.125,'Fall - Day');
+INSERT INTO `SegFrac` VALUES (2030,'fall','night',0.125,'Fall - Night');
+INSERT INTO `SegFrac` VALUES (2030,'winter2','day',0.12,'Winter - Day');
+INSERT INTO `SegFrac` VALUES (2030,'winter2','night',0.12,'Winter - Night');
+
 CREATE TABLE "PlanningReserveMargin" (
 	`regions`	text,
 	`reserve_margin`	REAL,
@@ -358,7 +399,7 @@ CREATE TABLE "Output_CapacityByPeriodAndTech" (
 );
 CREATE TABLE "MyopicBaseyear" (
 	"year"	real
-	"notes"	text	
+	"notes"	text
 );
 CREATE TABLE "MinGenGroupWeight" (
 	"regions"	text,
@@ -690,32 +731,68 @@ CREATE TABLE "DiscountRate" (
 );
 CREATE TABLE "DemandSpecificDistribution" (
 	"regions"	text,
+	"periods"	integer,
 	"season_name"	text,
 	"time_of_day_name"	text,
 	"demand_name"	text,
 	"dds"	real CHECK("dds" >= 0 AND "dds" <= 1),
 	"dds_notes"	text,
-	PRIMARY KEY("regions","season_name","time_of_day_name","demand_name"),
+	PRIMARY KEY("regions","periods","season_name","time_of_day_name","demand_name"),
+	FOREIGN KEY("periods") REFERENCES "time_periods"("t_periods"),
 	FOREIGN KEY("time_of_day_name") REFERENCES "time_of_day"("t_day"),
 	FOREIGN KEY("season_name") REFERENCES "time_season"("t_season"),
 	FOREIGN KEY("demand_name") REFERENCES "commodities"("comm_name")
 );
-INSERT INTO `DemandSpecificDistribution` VALUES ('R1','spring','day','RH',0.05,'');
-INSERT INTO `DemandSpecificDistribution` VALUES ('R1','spring','night','RH',0.1,'');
-INSERT INTO `DemandSpecificDistribution` VALUES ('R1','summer','day','RH',0.0,'');
-INSERT INTO `DemandSpecificDistribution` VALUES ('R1','summer','night','RH',0.0,'');
-INSERT INTO `DemandSpecificDistribution` VALUES ('R1','fall','day','RH',0.05,'');
-INSERT INTO `DemandSpecificDistribution` VALUES ('R1','fall','night','RH',0.1,'');
-INSERT INTO `DemandSpecificDistribution` VALUES ('R1','winter','day','RH',0.3,'');
-INSERT INTO `DemandSpecificDistribution` VALUES ('R1','winter','night','RH',0.4,'');
-INSERT INTO `DemandSpecificDistribution` VALUES ('R2','spring','day','RH',0.05,'');
-INSERT INTO `DemandSpecificDistribution` VALUES ('R2','spring','night','RH',0.1,'');
-INSERT INTO `DemandSpecificDistribution` VALUES ('R2','summer','day','RH',0.0,'');
-INSERT INTO `DemandSpecificDistribution` VALUES ('R2','summer','night','RH',0.0,'');
-INSERT INTO `DemandSpecificDistribution` VALUES ('R2','fall','day','RH',0.05,'');
-INSERT INTO `DemandSpecificDistribution` VALUES ('R2','fall','night','RH',0.1,'');
-INSERT INTO `DemandSpecificDistribution` VALUES ('R2','winter','day','RH',0.3,'');
-INSERT INTO `DemandSpecificDistribution` VALUES ('R2','winter','night','RH',0.4,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R1',2020,'spring','day','RH',0.05,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R1',2020,'spring','night','RH',0.1,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R1',2020,'summer','day','RH',0.0,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R1',2020,'summer','night','RH',0.0,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R1',2020,'fall','day','RH',0.05,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R1',2020,'fall','night','RH',0.1,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R1',2020,'winter','day','RH',0.3,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R1',2020,'winter','night','RH',0.4,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R2',2020,'spring','day','RH',0.05,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R2',2020,'spring','night','RH',0.1,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R2',2020,'summer','day','RH',0.0,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R2',2020,'summer','night','RH',0.0,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R2',2020,'fall','day','RH',0.05,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R2',2020,'fall','night','RH',0.1,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R2',2020,'winter','day','RH',0.3,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R2',2020,'winter','night','RH',0.4,'');
+
+INSERT INTO `DemandSpecificDistribution` VALUES ('R1',2025,'spring','day','RH',0.05,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R1',2025,'spring','night','RH',0.1,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R1',2025,'summer','day','RH',0.0,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R1',2025,'summer','night','RH',0.0,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R1',2025,'fall','day','RH',0.05,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R1',2025,'fall','night','RH',0.1,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R1',2025,'winter','day','RH',0.3,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R1',2025,'winter','night','RH',0.4,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R2',2025,'spring','day','RH',0.05,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R2',2025,'spring','night','RH',0.1,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R2',2025,'summer','day','RH',0.0,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R2',2025,'summer','night','RH',0.0,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R2',2025,'fall','day','RH',0.05,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R2',2025,'fall','night','RH',0.1,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R2',2025,'winter','day','RH',0.3,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R2',2025,'winter','night','RH',0.4,'');
+
+INSERT INTO `DemandSpecificDistribution` VALUES ('R1',2030,'spring','day','RH',0.05,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R1',2030,'spring','night','RH',0.1,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R1',2030,'summer','day','RH',0.0,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R1',2030,'summer','night','RH',0.0,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R1',2030,'fall','day','RH',0.05,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R1',2030,'fall','night','RH',0.1,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R1',2030,'winter2','day','RH',0.3,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R1',2030,'winter2','night','RH',0.4,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R2',2030,'spring','day','RH',0.05,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R2',2030,'spring','night','RH',0.1,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R2',2030,'summer','day','RH',0.0,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R2',2030,'summer','night','RH',0.0,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R2',2030,'fall','day','RH',0.05,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R2',2030,'fall','night','RH',0.1,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R2',2030,'winter2','day','RH',0.3,'');
+INSERT INTO `DemandSpecificDistribution` VALUES ('R2',2030,'winter2','night','RH',0.4,'');
 CREATE TABLE "Demand" (
 	"regions"	text,
 	"periods"	integer,
@@ -974,41 +1051,80 @@ INSERT INTO `CapacityToActivity` VALUES ('R1-R2','E_TRANS',31.54,'');
 INSERT INTO `CapacityToActivity` VALUES ('R2-R1','E_TRANS',31.54,'');
 CREATE TABLE "CapacityFactorTech" (
 	"regions"	text,
+	"periods"	integer,
 	"season_name"	text,
 	"time_of_day_name"	text,
 	"tech"	text,
 	"cf_tech"	real CHECK("cf_tech" >= 0 AND "cf_tech" <= 1),
 	"cf_tech_notes"	text,
-	PRIMARY KEY("regions","season_name","time_of_day_name","tech"),
+	PRIMARY KEY("regions","periods", "season_name","time_of_day_name","tech"),
+	FOREIGN KEY("periods") REFERENCES "time_periods"("t_periods"),
 	FOREIGN KEY("season_name") REFERENCES "time_season"("t_season"),
 	FOREIGN KEY("tech") REFERENCES "technologies"("tech"),
 	FOREIGN KEY("time_of_day_name") REFERENCES "time_of_day"("t_day")
 );
-INSERT INTO `CapacityFactorTech` VALUES ('R1','spring','day','E_SOLPV',0.6,'');
-INSERT INTO `CapacityFactorTech` VALUES ('R1','spring','night','E_SOLPV',0.0,'');
-INSERT INTO `CapacityFactorTech` VALUES ('R1','summer','day','E_SOLPV',0.6,'');
-INSERT INTO `CapacityFactorTech` VALUES ('R1','summer','night','E_SOLPV',0.0,'');
-INSERT INTO `CapacityFactorTech` VALUES ('R1','fall','day','E_SOLPV',0.6,'');
-INSERT INTO `CapacityFactorTech` VALUES ('R1','fall','night','E_SOLPV',0.0,'');
-INSERT INTO `CapacityFactorTech` VALUES ('R1','winter','day','E_SOLPV',0.6,'');
-INSERT INTO `CapacityFactorTech` VALUES ('R1','winter','night','E_SOLPV',0.0,'');
-INSERT INTO `CapacityFactorTech` VALUES ('R2','spring','day','E_SOLPV',0.48,'');
-INSERT INTO `CapacityFactorTech` VALUES ('R2','spring','night','E_SOLPV',0.0,'');
-INSERT INTO `CapacityFactorTech` VALUES ('R2','summer','day','E_SOLPV',0.48,'');
-INSERT INTO `CapacityFactorTech` VALUES ('R2','summer','night','E_SOLPV',0.0,'');
-INSERT INTO `CapacityFactorTech` VALUES ('R2','fall','day','E_SOLPV',0.48,'');
-INSERT INTO `CapacityFactorTech` VALUES ('R2','fall','night','E_SOLPV',0.0,'');
-INSERT INTO `CapacityFactorTech` VALUES ('R2','winter','day','E_SOLPV',0.48,'');
-INSERT INTO `CapacityFactorTech` VALUES ('R2','winter','night','E_SOLPV',0.0,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R1',2020,'spring','day','E_SOLPV',0.6,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R1',2020,'spring','night','E_SOLPV',0.0,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R1',2020,'summer','day','E_SOLPV',0.6,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R1',2020,'summer','night','E_SOLPV',0.0,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R1',2020,'fall','day','E_SOLPV',0.6,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R1',2020,'fall','night','E_SOLPV',0.0,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R1',2020,'winter','day','E_SOLPV',0.6,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R1',2020,'winter','night','E_SOLPV',0.0,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R2',2020,'spring','day','E_SOLPV',0.48,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R2',2020,'spring','night','E_SOLPV',0.0,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R2',2020,'summer','day','E_SOLPV',0.48,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R2',2020,'summer','night','E_SOLPV',0.0,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R2',2020,'fall','day','E_SOLPV',0.48,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R2',2020,'fall','night','E_SOLPV',0.0,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R2',2020,'winter','day','E_SOLPV',0.48,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R2',2020,'winter','night','E_SOLPV',0.0,'');
+
+INSERT INTO `CapacityFactorTech` VALUES ('R1',2025,'spring','day','E_SOLPV',0.6,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R1',2025,'spring','night','E_SOLPV',0.0,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R1',2025,'summer','day','E_SOLPV',0.6,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R1',2025,'summer','night','E_SOLPV',0.0,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R1',2025,'fall','day','E_SOLPV',0.6,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R1',2025,'fall','night','E_SOLPV',0.0,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R1',2025,'winter','day','E_SOLPV',0.6,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R1',2025,'winter','night','E_SOLPV',0.0,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R2',2025,'spring','day','E_SOLPV',0.48,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R2',2025,'spring','night','E_SOLPV',0.0,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R2',2025,'summer','day','E_SOLPV',0.48,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R2',2025,'summer','night','E_SOLPV',0.0,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R2',2025,'fall','day','E_SOLPV',0.48,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R2',2025,'fall','night','E_SOLPV',0.0,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R2',2025,'winter','day','E_SOLPV',0.48,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R2',2025,'winter','night','E_SOLPV',0.0,'');
+
+INSERT INTO `CapacityFactorTech` VALUES ('R1',2030,'spring','day','E_SOLPV',0.6,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R1',2030,'spring','night','E_SOLPV',0.0,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R1',2030,'summer','day','E_SOLPV',0.6,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R1',2030,'summer','night','E_SOLPV',0.0,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R1',2030,'fall','day','E_SOLPV',0.6,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R1',2030,'fall','night','E_SOLPV',0.0,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R1',2030,'winter2','day','E_SOLPV',0.6,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R1',2030,'winter2','night','E_SOLPV',0.0,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R2',2030,'spring','day','E_SOLPV',0.48,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R2',2030,'spring','night','E_SOLPV',0.0,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R2',2030,'summer','day','E_SOLPV',0.48,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R2',2030,'summer','night','E_SOLPV',0.0,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R2',2030,'fall','day','E_SOLPV',0.48,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R2',2030,'fall','night','E_SOLPV',0.0,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R2',2030,'winter2','day','E_SOLPV',0.48,'');
+INSERT INTO `CapacityFactorTech` VALUES ('R2',2030,'winter2','night','E_SOLPV',0.0,'');
+
 CREATE TABLE "CapacityFactorProcess" (
 	"regions"	text,
+	"periods"	integer,
 	"season_name"	text,
 	"time_of_day_name"	text,
 	"tech"	text,
 	"vintage"	integer,
 	"cf_process"	real CHECK("cf_process" >= 0 AND "cf_process" <= 1),
 	"cf_process_notes"	text,
-	PRIMARY KEY("regions","season_name","time_of_day_name","tech","vintage"),
+	PRIMARY KEY("regions","periods","season_name","time_of_day_name","tech","vintage"),
+	FOREIGN KEY("periods") REFERENCES "time_periods"("t_periods"),
 	FOREIGN KEY("tech") REFERENCES "technologies"("tech"),
 	FOREIGN KEY("season_name") REFERENCES "time_season"("t_season"),
 	FOREIGN KEY("time_of_day_name") REFERENCES "time_of_day"("t_day")
@@ -1034,7 +1150,7 @@ CREATE TABLE "MaxResource" (
 CREATE TABLE "LinkedTechs" (
 	"primary_region"	text,
 	"primary_tech"	text,
-	"emis_comm" text, 
+	"emis_comm" text,
  	"linked_tech"	text,
 	"tech_linked_notes"	text,
 	FOREIGN KEY("primary_tech") REFERENCES "technologies"("tech"),
@@ -1042,4 +1158,5 @@ CREATE TABLE "LinkedTechs" (
 	FOREIGN KEY("emis_comm") REFERENCES "commodities"("comm_name"),
 	PRIMARY KEY("primary_region","primary_tech", "emis_comm")
 );
+
 COMMIT;
