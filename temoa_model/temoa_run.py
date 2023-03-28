@@ -127,7 +127,7 @@ class TemoaSolver(object):
 			raise SystemExit( msg )
 
 		if self.options.neos is True:
-		    # Invoke NEOS solver manager if flag is specified in config file
+			# Invoke NEOS solver manager if flag is specified in config file
 			self.optimizer = pyomo.opt.SolverManagerFactory('neos')
 		else:
 			self.optimizer = SolverFactory( self.options.solver )
@@ -376,11 +376,39 @@ class TemoaSolverInstance(object):
 			self.txt_file.write( 'Solving.')
 			if self.optimizer:
 				if self.options.neos:
-				    self.result = self.optimizer.solve(self.instance, opt=self.options.solver)
+					self.result = self.optimizer.solve(self.instance, opt=self.options.solver)
 				else:
-				    self.result = self.optimizer.solve( self.instance, suffixes=['dual'],# 'rc', 'slack'],
-								keepfiles=self.options.keepPyomoLP,
-								symbolic_solver_labels=self.options.keepPyomoLP )
+					if self.options.solver == 'cbc':
+						sym_labels = False
+						# Note: The cbc solver encounters errors when variable names exceed
+						# 100 characters. To prevent this error from occuring, we do not
+						# send symbolic variable names to the solver.
+
+						# Solver options. Reference: https://genxproject.github.io/GenX/dev/solver_configuration/
+						#self.optimizer.options["dualBound"] = ??
+						self.optimizer.options["dualTolerance"] = 1e-6
+						self.optimizer.options["primalTolerance"] = 1e-6
+						self.optimizer.options["zeroTolerance"] = 1e-12
+						self.optimizer.options["crossover"] = 'off'
+						#self.optimizer.options["scaling"] =
+						#self.optimizer.options["barrier"] =
+
+
+					elif self.options.solver == 'cplex':
+						# Note: these parameter values are taken to be the same as those in PyPSA (see: https://pypsa-eur.readthedocs.io/en/latest/configuration.html)
+						self.optimizer.options["lpmethod"] = 4 # barrier
+						self.optimizer.options["solutiontype"] = 2 # non basic solution, ie no crossover
+						self.optimizer.options["barrier convergetol"] = 1.e-5
+						self.optimizer.options["feasopt tolerance"] = 1.e-6
+						sym_labels = self.options.keepPyomoLP
+					else:
+						# at this point, the model has not been tested with Gurobi or other solvers.
+						sym_labels = self.options.keepPyomoLP
+
+
+					self.result = self.optimizer.solve(self.instance, suffixes=['dual'],  tee=True,# 'rc', 'slack'],
+													   keepfiles=self.options.keepPyomoLP,
+													   symbolic_solver_labels=sym_labels)
 				yield '\t\t\t\t\t\t[%8.2f]\n' % duration()
 				SE.write( '\r[%8.2f]\n' % duration() )
 				self.txt_file.write( '[%8.2f]\n' % duration() )
@@ -510,7 +538,7 @@ def parse_args ( ):
 	  type=str,
 	  nargs='*',
 	  help='AMPL-format data file(s) with which to create a model instance. '
-	       'e.g. "data.dat"'
+		   'e.g. "data.dat"'
 	)
 
 	parser.add_argument( '--path_to_logs',
@@ -529,9 +557,9 @@ def parse_args ( ):
 
 	parser.add_argument('--solver',
 	  help="Which backend solver to use.  See 'pyomo --help-solvers' for a list "
-	       'of solvers with which Pyomo can interface.  The list shown here is '
-	       'what Pyomo can currently find on this system.  [Default: {}]'
-	       .format(default_solver),
+		   'of solvers with which Pyomo can interface.  The list shown here is '
+		   'what Pyomo can currently find on this system.  [Default: {}]'
+		   .format(default_solver),
 	  action='store',
 	  choices=sorted(available_solvers),
 	  dest='solver',
