@@ -1,12 +1,11 @@
-name: temoa-py3
+name: temoa-py3.11
 channels:
     - defaults
     - conda-forge
 dependencies:
     # Requirements for core model functionality
-    - python=3.7.3
-    - pyomo=5.5
-    - pyomo.extras
+    - python>=3.11
+    - pyomo>=6.4
     - xlwt
     - ipython
     - matplotlib
@@ -16,12 +15,11 @@ dependencies:
     - joblib
     - salib
     - pydoe
-    - pyutilib=5.8
+    - pyutilib
     - glpk
     - python-graphviz
     - ipykernel
     - jupyter
-    - jupyter_contrib_nbextensions
     - seaborn
     - tabulate
     - xlsxwriter
@@ -35,4 +33,3 @@ dependencies:
     - sphinxcontrib-bibtex
     # cbc solver below cannot be installed via Conda on Windows
     - coincbc
-
