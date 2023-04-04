@@ -472,8 +472,7 @@ Note that this constraint is only applied to the demand commodities with diurnal
 variations, and therefore the equation above only includes :math:`\textbf{FO}`
 and not  :math:`\textbf{FOA}`
 """
-    if (r, p, s, d, dem) not in M.DemandSpecificDistribution.sparse_keys():
-        return Constraint.Skip
+
     DSD = M.DemandSpecificDistribution  # lazy programmer
 
     act_a = sum(
