@@ -102,7 +102,6 @@ class TemoaSolver(object):
 			self.options, config_flag = parse_args()
 			if config_flag == 1:   # Option 2 (using config file)
 				self.options.path_to_lp_files = self.options.path_to_logs + sep + "lp_files"
-				TempfileManager.tempdir = self.options.path_to_lp_files
 			else:  # Must be Option 1 (no config file)
 				pass
 
@@ -115,7 +114,6 @@ class TemoaSolver(object):
 			self.temp_lp_dest = '/srv/thirdparty/temoa/data_files/'
 
 			self.options.path_to_lp_files = self.options.path_to_logs + sep + "lp_files"
-			TempfileManager.tempdir = self.options.path_to_lp_files
 
 
 	def temoa_checks(self):
@@ -302,6 +300,12 @@ class TemoaSolver(object):
 			traceback.print_exc()
 			SE.flush()
 
+		try:
+			self.txt_file.close()
+		except BaseException as io_exc:
+			yield "Log file cannot be closed. Please check path. Trying to find:\n"+self.options.path_to_logs+" folder\n"
+			SE.write("Log file cannot be closed. Please check path. Trying to find:\n"+self.options.path_to_logs+" folder\n")
+
 
 
 '''
@@ -482,7 +486,7 @@ def get_solvers():
 	available_solvers = set()
 	try:
 		services = SF.services() # pyutilib version <= 5.6.3
-	except RuntimeError as e:
+	except AttributeError as e:
 		services = SF # pyutilib version >= 5.6.4
 
 	for sname in services:
@@ -493,7 +497,7 @@ def get_solvers():
 
 		try:
 			if not solver: continue
-		except ApplicationError as e:
+		except:
 			continue
 
 		if 'os' == sname: continue     # Workaround current bug in Coopr

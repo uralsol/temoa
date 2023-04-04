@@ -27,6 +27,8 @@ from temoa_run import *
 
 import IPython
 
+import warnings
+import traceback
 
 def temoa_create_model(name="Temoa"):
     """\
@@ -48,7 +50,7 @@ def temoa_create_model(name="Temoa"):
     # Define time period vintages to track capacity installation
     M.vintage_exist = Set(ordered=True, initialize=init_set_vintage_exist)
     M.vintage_optimize = Set(ordered=True, initialize=init_set_vintage_optimize)
-    M.vintage_all = M.time_exist | M.time_optimize
+    M.vintage_all = Set(initialize = M.time_exist | M.time_optimize)
     # Perform some basic validation on the specified time periods.
     M.validate_time = BuildAction(rule=validate_time)
 
@@ -56,17 +58,16 @@ def temoa_create_model(name="Temoa"):
     M.time_season = Set(ordered=True)
     M.time_of_day = Set(ordered=True)
 
-
     # Define regions
     M.regions = Set()
     # RegionalIndices is the set of all the possible combinations of interregional
     # exhanges plus original region indices. If tech_exchange is empty, RegionalIndices =regions.
-    M.RegionalIndices = Set(initialize=CreateRegionalIndices)
+    M.RegionalIndices = Set(initialize=CreateRegionalIndices, ordered=False)
 
     # Define technology-related sets
     M.tech_resource = Set()
     M.tech_production = Set()
-    M.tech_all = M.tech_resource | M.tech_production
+    M.tech_all = Set(initialize=M.tech_resource | M.tech_production)
     M.tech_baseload = Set(within=M.tech_all)
     M.tech_storage = Set(within=M.tech_all)
     M.tech_reserve = Set(within=M.tech_all)
@@ -85,8 +86,8 @@ def temoa_create_model(name="Temoa"):
     M.commodity_demand = Set()
     M.commodity_emissions = Set()
     M.commodity_physical = Set()
-    M.commodity_carrier = M.commodity_physical | M.commodity_demand
-    M.commodity_all = M.commodity_carrier | M.commodity_emissions
+    M.commodity_carrier = Set(initialize = M.commodity_physical | M.commodity_demand)
+    M.commodity_all = Set(initialize = M.commodity_carrier | M.commodity_emissions)
 
     # Define sets for MGA weighting
     M.tech_mga = Set(within=M.tech_all)
@@ -217,7 +218,7 @@ def temoa_create_model(name="Temoa"):
     )
 
     # Define parameters associated with user-defined constraints
-    M.RegionalGlobalIndices = Set(initialize=RegionalGlobalInitializedIndices)
+    M.RegionalGlobalIndices = Set(initialize=RegionalGlobalInitializedIndices, ordered=False)
     M.MinCapacity = Param(M.RegionalIndices, M.time_optimize, M.tech_all)
     M.MaxCapacity = Param(M.RegionalIndices, M.time_optimize, M.tech_all)
     M.MaxResource = Param(M.RegionalIndices, M.tech_all)

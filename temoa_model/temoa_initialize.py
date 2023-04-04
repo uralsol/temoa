@@ -372,7 +372,7 @@ def CreateDemands ( M ):
 
 	# Step 3
 	for p in M.time_optimize:
-		total = sum( DDD[(_p, _s, _d)] for (_p, _s, _d) in DDD.iterkeys() if _p == p)
+		total = sum( DDD[(_p, _s, _d)] for (_p, _s, _d) in DDD.keys() if _p == p)
 		if abs(value(total) - 1.0) > 0.001:
 			# We can't explicitly test for "!= 1.0" because of incremental rounding
 			# errors associated with the specification of demand shares by time slice,
@@ -799,7 +799,6 @@ def get_time_seasons_per_period_dict( M ):
 		time_seasons_per_period_dict[p].append(s)
 
 	return time_seasons_per_period_dict
-
 
 def SegFracIndices ( M ):
 	indices = set(
