@@ -45,6 +45,12 @@ def myopic_db_generator_solver ( self ):
     con_org = sqlite3.connect(db_path_org)
     cur_org = con_org.cursor()
     table_list = cur_org.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'Output%'").fetchall()
+    # Create a dict mapping table names to its column names
+    table_columns = {}
+    for table in table_list:
+        cursor = con_org.execute("SELECT * FROM "+str(table[0]))
+        names = list(map(lambda x: x[0], cursor.description))
+        table_columns[table[0]] = names
     time_periods = cur_org.execute("SELECT t_periods FROM time_periods WHERE flag='f'").fetchall()
     cur_org.execute("DELETE FROM MyopicBaseyear")
     cur_org.execute("INSERT INTO MyopicBaseyear (year) VALUES ("+str(time_periods[0][0])+")")
@@ -59,9 +65,8 @@ def myopic_db_generator_solver ( self ):
                      'MinActivity','MinCapacity','TechInputSplit','TechInputSplitAverage','TechOutputSplit',\
                      'CapacityCredit','MinGenGroupTarget','time_seasons_per_period','SegFrac','CapacityFactorTech',
                      'CapacityFactorProcess','DemandSpecificDistribution']
-    # group 2 consists of non output tables in which "vintage" is a column name except for CostFixed and CostVariable (taken care of above)
-    tables_group2 = ['CapacityFactorProcess','CostInvest','DiscountRate', \
-                     'Efficiency','EmissionActivity','ExistingCapacity','LifetimeProcess']
+    # group 2 consists of non output tables in which "vintage" is a column name except for CostFixed, CostVariable and CapacityFactorProcess (taken care of above)
+    tables_group2 = ['CostInvest','DiscountRate', 'Efficiency','EmissionActivity','ExistingCapacity','LifetimeProcess']
 
     version = int(sys.version[0])
 
@@ -283,8 +288,7 @@ def myopic_db_generator_solver ( self ):
                 # If t doesn't exist in Efficiency table after the deletions made above,
                 # it is deleted from other tables.
                 cur.execute("DELETE FROM "+str(table[0])+" WHERE tech NOT IN (SELECT tech FROM Efficiency);")
-                cursor = con.execute("SELECT * FROM "+str(table[0]))
-                names = list(map(lambda x: x[0], cursor.description))
+                names = table_columns[table[0]]
                 if 'regions' in names:
                     query = "DELETE FROM "+str(table[0])+" WHERE (regions, tech) NOT IN (SELECT DISTINCT regions, tech FROM Efficiency) \
                     AND regions!='global'"
@@ -292,23 +296,31 @@ def myopic_db_generator_solver ( self ):
                     query = "DELETE FROM "+str(table[0])+" WHERE tech NOT IN (SELECT tech FROM Efficiency) \
                     AND regions='global'"
                     cur.execute(query)
-
+                    con.commit()
+                if 'regions' in names and 'vintage' in names:
+                    query = "DELETE FROM "+str(table[0])+" WHERE (regions, tech, vintage) NOT IN (SELECT DISTINCT regions, tech, vintage FROM Efficiency) \
+                    AND regions!='global'"
+                    cur.execute(query)
+                    query = "DELETE FROM "+str(table[0])+" WHERE tech NOT IN (SELECT tech FROM Efficiency) \
+                    AND regions='global'"
+                    cur.execute(query)
+                    con.commit()
                 if 'vintage' in names:
                     if table[0]!='ExistingCapacity':
                         for j in range(N-1,-1,-1):
-                            names = list(map(lambda x: x[0], cursor.description))
-                            names = [str(time_periods[i-j][0]) if x=='vintage' else x for x in names]
-                            query = "SELECT DISTINCT "+",".join(names)+\
+                            _names = [str(time_periods[i-j][0]) if x=='vintage' else x for x in names]
+                            query = "SELECT DISTINCT "+",".join(_names)+\
                                     " FROM "+table[0]+" WHERE tech NOT IN (SELECT tech FROM "+table[0]+\
                                     " WHERE vintage<"+str(time_periods[0][0])+") AND tech NOT IN (SELECT tech FROM "+\
                                     table[0]+" WHERE vintage >= "+str(time_periods[i-j][0])+");"
                             df_table = cur.execute(query).fetchall()
-                            if df_table == []: continue
+                            if df_table == []:
+                                continue
                             df_table = pd.read_sql_query(query, con)
                             if table[0] == 'EmissionActivity':
-                                filter_list = names[:names.index(str(time_periods[i-j][0]))+2]
+                                filter_list = _names[:_names.index(str(time_periods[i-j][0]))+2]
                             else:
-                                filter_list = names[:names.index(str(time_periods[i-j][0]))+1]
+                                filter_list = _names[:_names.index(str(time_periods[i-j][0]))+1]
                             df_table = df_table.drop_duplicates(subset=filter_list, keep='last')
                             df_table.columns = ['vintage' if x==str(time_periods[i-j][0]) else x for x in df_table.columns]
                             df_table.to_sql(str(table[0]),con, if_exists='append', index=False)
@@ -331,7 +343,7 @@ def myopic_db_generator_solver ( self ):
             #    raise Exception(table[0],j)
 
             except:
-            	pass
+                pass
 
         cur.execute("UPDATE commodities SET comm_name = TRIM(comm_name, CHAR(10,13,37))")
         # delete unused commodities otherwise the model throws an error
