@@ -1069,7 +1069,7 @@ ensure demand activity remains consistent across time slices.
 def DemandConstraintIndices ( M ):
 	used_dems = set((r, p, dem) for r, p, dem in M.Demand.sparse_iterkeys())
 	DSD_keys = M.DemandSpecificDistribution.sparse_keys()
-	dem_slices = { (r,dem) : set(
+	dem_slices = { (r, p, dem) : set(
 		(s, d)
 		for s in M.time_season
 		for d in M.time_of_day
@@ -1081,7 +1081,7 @@ def DemandConstraintIndices ( M ):
 	  (r, p, s, d, dem)
 
 	  for r, p, dem in M.Demand.sparse_iterkeys()
-	  for s, d in dem_slices[ (r,dem) ]
+	  for s, d in dem_slices[ (r, p, dem) ]
 	)
 
 	return indices
