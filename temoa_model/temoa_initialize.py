@@ -880,14 +880,17 @@ the "SeasonWeights" parameter.
 	return indices
 
 def RegionalGlobalInitializedIndices ( M ):
-	from itertools import permutations
-	indices = set()
-	for n in range(1,len(M.regions)+1):
-		regional_perms = permutations(M.regions,n)
-		for i in regional_perms:
-			indices.add("+".join(i))
+	"""\
+	This function returns a set of indices over which a number of constraints
+	are defined. Specifically, this is the union of several sets:
+		- M.regions
+		- M.region_combinations
+		- M.RegionalIndices
+	Additionally, the 'global' keyword is added to the set which is shorthand
+	for all regions.
+	"""
+	indices = set( M.regions | M.region_combinations | M.RegionalIndices)
 	indices.add('global')
-	indices = indices.union(M.RegionalIndices)
 
 	return indices
 

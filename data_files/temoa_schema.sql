@@ -83,6 +83,11 @@ CREATE TABLE "regions" (
 	"region_note"	TEXT,
 	PRIMARY KEY("regions")
 );
+CREATE TABLE "region_combinations" (
+	"regions"	TEXT,
+	"region_note"	TEXT,
+	PRIMARY KEY("regions")
+);
 CREATE TABLE "groups" (
 	"group_name"	text,
 	"notes"	text,
