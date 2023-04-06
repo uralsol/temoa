@@ -162,8 +162,7 @@ CREATE TABLE "SegFrac" (
 CREATE TABLE "PlanningReserveMargin" (
 	`regions`	text,
 	`reserve_margin`	REAL,
-	PRIMARY KEY(regions),
-	FOREIGN KEY(`regions`) REFERENCES regions
+	PRIMARY KEY("regions")
 );
 CREATE TABLE "RampDown" (
 	`regions`	text,

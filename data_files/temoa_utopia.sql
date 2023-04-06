@@ -240,8 +240,7 @@ INSERT INTO `SegFrac` VALUES (2010,'winter','night',0.1667,'# W-N');
 CREATE TABLE "PlanningReserveMargin" (
 	`regions`	text,
 	`reserve_margin`	REAL,
-	PRIMARY KEY(regions),
-	FOREIGN KEY(`regions`) REFERENCES regions
+	PRIMARY KEY("regions")
 );
 CREATE TABLE "Output_V_Capacity" (
 	"regions"	text,
