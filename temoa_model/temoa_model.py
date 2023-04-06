@@ -60,6 +60,8 @@ def temoa_create_model(name="Temoa"):
 
     # Define regions
     M.regions = Set()
+    M.region_combinations = Set()
+
     # RegionalIndices is the set of all the possible combinations of interregional
     # exhanges plus original region indices. If tech_exchange is empty, RegionalIndices =regions.
     M.RegionalIndices = Set(initialize=CreateRegionalIndices, ordered=False)
