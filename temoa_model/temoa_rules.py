@@ -1471,20 +1471,30 @@ we write this equation for all the time-slices defined in the database in each r
        \forall \{r, p, s, d\} \in \Theta_{\text{ReserveMargin}}
 
 """
-    if (not M.tech_reserve) or ((r,p) not in M.processReservePeriods.keys()):  # If reserve set empty or if r,p not in M.processReservePeriod.keys(), skip the constraint
+    if r == 'global':
+      regions = M.regions
+    elif '+' in r:
+      regions = r.split('+')
+    else:
+      regions = [r]
+
+    if (not M.tech_reserve):  # If reserve set empty skip the constraint
+        return Constraint.Skip
+    if  value(M.PlanningReserveMargin[r]) == 0:
         return Constraint.Skip
 
     cap_avail = sum(
-        value(M.CapacityCredit[r, p, t, v])
-        * M.ProcessLifeFrac[r, p, t, v]
-        * M.V_Capacity[r, t, v]
-        * value(M.CapacityToActivity[r, t])
+        value(M.CapacityCredit[reg, p, t, v])
+        * M.ProcessLifeFrac[reg, p, t, v]
+        * M.V_Capacity[reg, t, v]
+        * value(M.CapacityToActivity[reg, t])
         * value(M.SegFrac[p, s, d])
+        for reg in regions
         for t in M.tech_reserve
-        if (r, p, t) in M.processVintages.keys()
-        for v in M.processVintages[r, p, t]
+        if (reg, p, t) in M.processVintages.keys()
+        for v in M.processVintages[reg, p, t]
         # Make sure (r,p,t,v) combinations are defined
-        if (r,p,t,v) in M.activeCapacityAvailable_rptv
+        if (reg,p,t,v) in M.activeCapacityAvailable_rptv
 
 
     )
@@ -1492,10 +1502,11 @@ we write this equation for all the time-slices defined in the database in each r
     # In most Temoa input databases, demand is endogenous, so we use electricity
     # generation instead.
     total_generation = sum(
-        M.V_FlowOut[r, p, s, d, S_i, t, S_v, S_o]
-        for (t,S_v) in M.processReservePeriods[r, p]
-        for S_i in M.processInputs[r, p, t, S_v]
-        for S_o in M.ProcessOutputsByInput[r, p, t, S_v, S_i]
+        M.V_FlowOut[reg, p, s, d, S_i, t, S_v, S_o]
+        for reg in regions
+        for (t,S_v) in M.processReservePeriods[reg, p]
+        for S_i in M.processInputs[reg, p, t, S_v]
+        for S_o in M.ProcessOutputsByInput[reg, p, t, S_v, S_i]
     )
 
     cap_target = total_generation * (1 + value(M.PlanningReserveMargin[r]))

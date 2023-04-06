@@ -1220,7 +1220,7 @@ def ReserveMarginIndices ( M ):
 	indices = set(
 		(r, p , s , d )
 
-	   for r in M.regions
+	   for r in M.RegionalGlobalIndices
 	   for p in M.time_optimize
 	   for s in M.time_seasons_per_period_dict[p]
 	   for d in M.time_of_day
