@@ -251,7 +251,6 @@ CREATE TABLE "Output_Emissions" (
 	"emissions"	real,
 	PRIMARY KEY("regions","scenario","t_periods","emissions_comm","tech","vintage"),
 	FOREIGN KEY("vintage") REFERENCES "time_periods"("t_periods"),
-	FOREIGN KEY("emissions_comm") REFERENCES "EmissionActivity"("emis_comm"),
 	FOREIGN KEY("tech") REFERENCES "technologies"("tech"),
 	FOREIGN KEY("sector") REFERENCES "sector_labels"("sector"),
 	FOREIGN KEY("t_periods") REFERENCES "time_periods"("t_periods")
@@ -368,6 +367,26 @@ CREATE TABLE "MaxActivity" (
 	"maxact"	real,
 	"maxact_units"	text,
 	"maxact_notes"	text,
+	PRIMARY KEY("regions","periods","tech"),
+	FOREIGN KEY("periods") REFERENCES "time_periods"("t_periods"),
+	FOREIGN KEY("tech") REFERENCES "technologies"("tech")
+);
+CREATE TABLE "MinAnnualCapacityFactor" (
+	"regions"	text,
+	"periods"	integer,
+	"tech"	text,
+	"mincf"	real CHECK("mincf" >= 0 AND "mincf" <= 1),
+	"mincf_notes"	text,
+	PRIMARY KEY("regions","periods","tech"),
+	FOREIGN KEY("periods") REFERENCES "time_periods"("t_periods"),
+	FOREIGN KEY("tech") REFERENCES "technologies"("tech")
+);
+CREATE TABLE "MaxAnnualCapacityFactor" (
+	"regions"	text,
+	"periods"	integer,
+	"tech"	text,
+	"maxcf"	real CHECK("maxcf" >= 0 AND "maxcf" <= 1),
+	"maxcf_notes"	text,
 	PRIMARY KEY("regions","periods","tech"),
 	FOREIGN KEY("periods") REFERENCES "time_periods"("t_periods"),
 	FOREIGN KEY("tech") REFERENCES "technologies"("tech")

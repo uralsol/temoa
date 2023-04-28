@@ -38,6 +38,7 @@ import sys
 from IPython import embed as IP
 import io
 
+
 def myopic_db_generator_solver ( self ):
     global db_path_org
     db_path_org = self.options.output
@@ -64,7 +65,7 @@ def myopic_db_generator_solver ( self ):
     tables_group1 = ['CostFixed','CostVariable','Demand','EmissionLimit','MaxActivity','MaxCapacity', \
                      'MinActivity','MinCapacity','TechInputSplit','TechInputSplitAverage','TechOutputSplit',\
                      'CapacityCredit','MinGenGroupTarget','time_seasons_per_period','SegFrac','CapacityFactorTech',
-                     'CapacityFactorProcess','DemandSpecificDistribution']
+                     'CapacityFactorProcess','DemandSpecificDistribution', 'MinAnnualCapacityFactor', 'MaxAnnualCapacityFactor']
     # group 2 consists of non output tables in which "vintage" is a column name except for CostFixed, CostVariable and CapacityFactorProcess (taken care of above)
     tables_group2 = ['CostInvest','DiscountRate', 'Efficiency','EmissionActivity','ExistingCapacity','LifetimeProcess']
 
