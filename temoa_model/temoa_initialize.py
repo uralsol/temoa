@@ -1091,21 +1091,15 @@ ensure demand activity remains consistent across time slices.
 					yield (r,p,s,d,t,v,dem,s0,d0)
 
 def DemandConstraintIndices ( M ):
-	used_dems = set((r, p, dem) for r, p, dem in M.Demand.sparse_iterkeys())
-	DSD_keys = M.DemandSpecificDistribution.sparse_keys()
-	dem_slices = { (r, p, dem) : set(
-		(s, d)
-		for s in M.time_season
-		for d in M.time_of_day
-		if (r, p, s, d, dem) in DSD_keys )
-	  for (r, p, dem) in used_dems
-	}
+	# Assume if a DSD is given for a single timestamp, it must be given
+    # for all time stamps
 
 	indices = set(
 	  (r, p, s, d, dem)
 
 	  for r, p, dem in M.Demand.sparse_iterkeys()
-	  for s, d in dem_slices[ (r, p, dem) ]
+	  for s in M.time_seasons_per_period_dict[p]
+	  for d in M.time_of_day
 	)
 
 	return indices
