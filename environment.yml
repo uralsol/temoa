@@ -34,5 +34,4 @@ dependencies:
     - sphinxcontrib-serializinghtml
     - sphinxcontrib-bibtex
     # cbc solver below cannot be installed via Conda on Windows
-    - coincbc
-
+   
